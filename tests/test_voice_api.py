@@ -219,6 +219,30 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
     assert refreshed[5]["choices"] == ["test-voice"]
     assert refreshed[5]["value"] == "test-voice"
 
+    (tmp_path / "voices" / "another-voice").mkdir()
+    refreshed_again = asyncio.run(
+        ui.fns[2].fn(submitted[0], refreshed[6], refreshed[5]["value"])
+    )
+
+    assert refreshed_again[5]["choices"] == ["another-voice", "test-voice"]
+    assert refreshed_again[5]["value"] == "test-voice"
+
+
+def test_gradio_synthesis_requires_selected_voice(tmp_path):
+    app = create_app(tmp_path, FakeVoiceProfiles())
+    ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
+
+    submitted = asyncio.run(
+        ui.fns[4].fn("Ein Beispieltext.", "Beispiel", None, None, None, "wav")
+    )
+
+    assert submitted == (
+        "",
+        "Bitte eine Stimme auswaehlen.",
+        True,
+        "Bitte eine Stimme auswaehlen.",
+    )
+
 
 def test_gradio_submission_respects_shared_busy_job_slot(tmp_path):
     app = create_app(tmp_path, FakeVoiceProfiles())

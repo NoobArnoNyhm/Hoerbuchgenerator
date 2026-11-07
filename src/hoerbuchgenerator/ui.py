@@ -101,7 +101,7 @@ def create_ui_callbacks(
             message = "Bitte Text eingeben oder mindestens eine TXT-Datei hochladen."
             return "", message, True, message
         if not voice:
-            message = "Bitte den Stimmen-Slug eingeben."
+            message = "Bitte eine Stimme auswaehlen."
             return "", message, True, message
 
         try:
