@@ -56,6 +56,26 @@ def test_startup_creates_persistent_data_directories(tmp_path):
     assert (tmp_path / "config").is_dir()
 
 
+def test_startup_cleans_orphaned_work_without_touching_persistent_data(tmp_path):
+    orphaned_job = tmp_path / "work" / "abandoned-job"
+    orphaned_job.mkdir(parents=True)
+    (orphaned_job / "input.txt").write_text("temporary", encoding="utf-8")
+    (tmp_path / "work" / "stray.tmp").write_text("temporary", encoding="utf-8")
+    voice_profile = tmp_path / "voices" / "keep_voice"
+    voice_profile.mkdir(parents=True)
+    (voice_profile / "metadata.json").write_text("{}", encoding="utf-8")
+    output_file = tmp_path / "output" / "keep.wav"
+    output_file.parent.mkdir()
+    output_file.write_bytes(b"finished")
+
+    with TestClient(create_app(tmp_path)):
+        pass
+
+    assert list((tmp_path / "work").iterdir()) == []
+    assert (voice_profile / "metadata.json").is_file()
+    assert output_file.read_bytes() == b"finished"
+
+
 def test_startup_skips_incomplete_local_model_caches(tmp_path, caplog):
     qwen_path = (
         tmp_path

@@ -172,6 +172,10 @@
   waehrend eines pausierten Chunks und nach Abschluss geprueft: Phase, Gesamt-
   und Abschlusszaehler sowie Bereinigung des Auftragsverzeichnisses stimmen.
   Synthese- und API-Regressionen bestanden (**10 Tests**).
+- Verwaiste Eintraege unter `work/` werden beim App-Start einzeln bereinigt;
+  Fehler bei der Bereinigung brechen den Start mit Pfad und Ursache ab.
+  Regressionstest bestaetigt, dass persistente Stimmenprofile und fertige
+  Ausgaben unberuehrt bleiben.
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
 - Reale Nutzerreferenzen, UI-Fluss im Browser und Hoerbuchqualitaet sind noch

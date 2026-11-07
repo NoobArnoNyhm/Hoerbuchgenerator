@@ -39,7 +39,9 @@ deaktiviert Hub-Telemetrie; die vorherigen Prozessumgebungswerte werden beim
 Herunterfahren wiederhergestellt. Ein Modellworker startet erst, wenn die
 erforderlichen lokalen Konfigurations-, Gewichts- und Tokenizerdateien
 vorhanden sind; unvollstaendige Caches werden mit den fehlenden Dateien
-protokolliert.
+protokolliert. Verwaiste Dateien und Auftragsverzeichnisse in `data/work/`
+werden beim Start bereinigt; Stimmenprofile und fertige Ausgaben bleiben dabei
+unangetastet.
 
 In der UI koennen Sie einen Stimmenname und eine WAV-/MP3-Referenzaufnahme
 angeben. Der Auftrag wird angenommen, der gemeinsame Status alle zwei Sekunden

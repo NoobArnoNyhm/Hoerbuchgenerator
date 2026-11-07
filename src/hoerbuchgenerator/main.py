@@ -97,6 +97,25 @@ def _offline_runtime_environment(previous: dict[str, str | None]):
                 os.environ[key] = value
 
 
+def _cleanup_orphaned_work(work_root: Path) -> None:
+    try:
+        if work_root.is_symlink():
+            raise OSError(f"Arbeitsverzeichnis ist ein symbolischer Link: {work_root}")
+        for entry in work_root.iterdir():
+            if entry.is_symlink() or not entry.is_dir():
+                entry.unlink()
+            else:
+                shutil.rmtree(entry)
+    except OSError as error:
+        logger.exception(
+            "Verwaiste Arbeitsdateien unter %s konnten nicht bereinigt werden",
+            work_root,
+        )
+        raise RuntimeError(
+            f"Verwaiste Arbeitsdateien konnten nicht bereinigt werden: {work_root}"
+        ) from error
+
+
 def create_app(
     data_dir: Path | None = None,
     voice_profiles: VoiceProfileService | None = None,
@@ -112,6 +131,7 @@ def create_app(
         with _offline_runtime_environment(previous_environment):
             for directory in ("models/huggingface", "models/whisper", "voices", "output", "work", "config"):
                 (root / directory).mkdir(parents=True, exist_ok=True)
+            _cleanup_orphaned_work(root / "work")
             if application.state.voice_worker is None and not application.state.voice_available:
                 qwen_name = os.environ.get("QWEN_MODEL", QWEN_BASE_MODELS[0])
                 whisper_name = os.environ.get("WHISPER_MODEL", "base")
