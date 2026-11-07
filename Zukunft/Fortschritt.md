@@ -198,6 +198,8 @@
   Syntheseauftrag uebergeben werden.
 - Die direkte Texteingabe der Gradio-UI wird vor Auftragserstellung gegen das
   gemeinsame Byte-Uploadlimit geprueft; ein Test deckt UTF-8-Mehrbytezeichen ab.
+- Die UI weist mehr als die API-seitig erlaubten 20 Textdateien vor dem Lesen
+  zurueck; beide Oberflaechen verwenden dieselbe zentrale Dateigrenze.
 - Das manuelle Gradio-Stimmen-Slug-Feld durch eine Auswahl vorhandener Profile
   ersetzt. Die Auswahl wird beim Laden und mit der Statusaktualisierung
   synchronisiert, behaelt gueltige Auswahlen bei und waehlt eine neu erstellte

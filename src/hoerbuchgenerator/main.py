@@ -23,6 +23,7 @@ from hoerbuchgenerator.qwen import (
 )
 from hoerbuchgenerator.synthesis import (
     MAX_TEXT_BYTES,
+    MAX_SYNTHESIS_FILES,
     SynthesisError,
     _chunks_with_pauses,
     synthesize_file,
@@ -438,7 +439,7 @@ def create_app(
             raise HTTPException(status_code=422, detail={"code": "invalid_output_format"})
         if language is not None and language.lower() not in QWEN_LANGUAGES:
             raise HTTPException(status_code=422, detail={"code": "unsupported_language"})
-        if not items or len(items) > 20:
+        if not items or len(items) > MAX_SYNTHESIS_FILES:
             raise HTTPException(status_code=422, detail={"code": "invalid_file_count"})
 
         seen_names: set[str] = set()

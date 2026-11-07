@@ -18,6 +18,7 @@ from hoerbuchgenerator.voice_profiles import QWEN_LANGUAGES
 PAUSE_BETWEEN_CHUNKS_SECONDS = 0.3
 PAUSE_BETWEEN_PARAGRAPHS_SECONDS = 0.7
 MAX_TEXT_BYTES = 10 * 1024 * 1024
+MAX_SYNTHESIS_FILES = 20
 
 
 class SynthesisError(RuntimeError):

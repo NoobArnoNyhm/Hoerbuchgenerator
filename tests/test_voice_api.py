@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from hoerbuchgenerator.main import create_app
-from hoerbuchgenerator.synthesis import MAX_TEXT_BYTES
+from hoerbuchgenerator.synthesis import MAX_SYNTHESIS_FILES, MAX_TEXT_BYTES
 from hoerbuchgenerator.ui import create_ui_callbacks
 
 
@@ -308,6 +308,38 @@ def test_gradio_synthesis_rejects_text_over_byte_limit(tmp_path):
         True,
         "Die Texteingabe ueberschreitet das Uploadlimit.",
     )
+
+
+def test_gradio_synthesis_rejects_too_many_files_before_reading(tmp_path):
+    async def unused_synthesis(*args):
+        raise AssertionError("Invalid file count must be rejected before submission")
+
+    async def unused_upload(*args):
+        raise AssertionError("Voice upload is not expected")
+
+    callbacks = create_ui_callbacks(
+        FastAPI(),
+        tmp_path,
+        unused_upload,
+        unused_synthesis,
+        lambda: True,
+    )
+    submitted = asyncio.run(
+        callbacks[1](
+            "",
+            "",
+            [str(tmp_path / f"chapter-{index}.txt") for index in range(MAX_SYNTHESIS_FILES + 1)],
+            "test-voice",
+            None,
+            "wav",
+        )
+    )
+    message = (
+        f"Es koennen maximal {MAX_SYNTHESIS_FILES} Textdateien "
+        "gleichzeitig verarbeitet werden."
+    )
+
+    assert submitted == ("", message, True, message)
 
 
 def test_gradio_synthesis_preserves_uploaded_file_order_and_content(tmp_path):

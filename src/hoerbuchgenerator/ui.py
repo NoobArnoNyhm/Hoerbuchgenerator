@@ -8,7 +8,7 @@ from typing import Any
 import gradio as gr
 from fastapi import FastAPI, HTTPException
 
-from hoerbuchgenerator.synthesis import MAX_TEXT_BYTES
+from hoerbuchgenerator.synthesis import MAX_SYNTHESIS_FILES, MAX_TEXT_BYTES
 from hoerbuchgenerator.voice_profiles import QWEN_LANGUAGES
 from hoerbuchgenerator.voice_catalog import VoiceCatalogError, list_voice_profiles
 
@@ -80,6 +80,12 @@ def create_ui_callbacks(
 
             items.append((output_name.strip(), read_text))
         elif uploaded_files:
+            if len(uploaded_files) > MAX_SYNTHESIS_FILES:
+                message = (
+                    f"Es koennen maximal {MAX_SYNTHESIS_FILES} Textdateien "
+                    "gleichzeitig verarbeitet werden."
+                )
+                return "", message, True, message
             total_upload_bytes = 0
             for file_path in uploaded_files:
                 path = Path(file_path)
