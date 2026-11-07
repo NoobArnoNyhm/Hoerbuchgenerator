@@ -206,12 +206,13 @@
   2.6.0/CUDA 12.4 erstellt. Compose trennt den Offline-App-Dienst vom
   netzwerkfaehigen Modell-Initializer, bindet `data/` persistent ein,
   veroeffentlicht nur den Loopback-Port und prueft Modellbereitschaft.
-- PowerShell- und Bash-Skripte fuer Image-/Modellinitialisierung, Start mit
-  Readiness-Timeout, Status, Logs und Stop ergaenzt. Compose-Konfiguration,
+- Ein Initialisierungsskript je Shell (PowerShell/Bash) baut das Image,
+  initialisiert Modelle und startet den App-Container mit Compose. Status,
+  Logs und Stop bleiben direkte Compose-Befehle. Compose-Konfiguration,
   Image-Build, PyTorch-CUDA-Paketimport, App-Startup ohne Modelle, Initializer
   mit vorhandenen Caches, Skriptsyntax und 30 gezielte API-/UI-Tests bestanden.
-  Der GPU-Start ueber Compose und eine echte Modellinitialisierung wurden in
-  diesem Schritt nicht ausgefuehrt.
+  Der GPU-Start ueber Compose und eine echte Modellinitialisierung wurden nicht
+  ausgefuehrt.
 - Das manuelle Gradio-Stimmen-Slug-Feld durch eine Auswahl vorhandener Profile
   ersetzt. Die Auswahl wird beim Laden und mit der Statusaktualisierung
   synchronisiert, behaelt gueltige Auswahlen bei und waehlt eine neu erstellte

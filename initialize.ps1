@@ -13,6 +13,14 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Die Modellinitialisierung ist fehlgeschlagen."
     }
+
+    docker compose up -d app
+    if ($LASTEXITCODE -ne 0) {
+        throw "Der App-Container konnte nicht gestartet werden."
+    }
+
+    $port = if ($env:APP_PORT) { $env:APP_PORT } else { "8000" }
+    Write-Output "Hoerbuchgenerator startet: http://127.0.0.1:$port/ui"
 }
 finally {
     Pop-Location

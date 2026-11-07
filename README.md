@@ -17,24 +17,28 @@ werden separat initialisiert und nicht in das Image eingebaut.
 ```powershell
 Copy-Item .env.example .env
 .\initialize.ps1
-.\start.ps1
-.\status.ps1
-.\logs.ps1
-.\stop.ps1
 ```
 
-Unter Linux dieselben Schritte mit `cp .env.example .env` und
-`sh initialize.sh`, `sh start.sh`, `sh status.sh`, `sh logs.sh` sowie
-`sh stop.sh` ausfuehren. `initialize` baut das Runtime-Image und laedt die in
-`.env` ausgewaehlten Qwen- und Whisper-Modelle nach `data/models/`; dazu ist
-Netzwerkzugriff auf Hugging Face erforderlich. Falls Modellzugriff ein Token
-benoetigt, `HF_TOKEN` nur in der lokalen `.env` setzen. Der normale
-App-Container laeuft danach ohne externen Netzwerkzugriff. Er bindet nur
-`127.0.0.1:${APP_PORT}` und benoetigt bis zu zehn Minuten zum Laden der Modelle.
-Die Startskripte warten auf den Status `ready` und geben bei einem Timeout
-Containerlogs aus. Stimmen, Ausgaben, Modelle und Konfiguration bleiben unter
-`data/` erhalten; Backups dieses Verzeichnisses sind die Verantwortung des
-Betreibers.
+Unter Linux `.env` mit `cp .env.example .env` anlegen und einmalig
+`sh initialize.sh` ausfuehren. Beide Initialisierungsskripte bauen das
+Runtime-Image, initialisieren die in `.env` ausgewaehlten Modelle und starten
+den App-Container mit Compose. Fuer den Modellabruf ist Netzwerkzugriff auf
+Hugging Face erforderlich. Falls Modellzugriff ein Token benoetigt, `HF_TOKEN`
+nur in der lokalen `.env` setzen. Der normale App-Container laeuft danach ohne
+externen Netzwerkzugriff. Er bindet nur `127.0.0.1:${APP_PORT}`; der Healthcheck
+wird nach dem Modellstart `healthy`.
+
+Der weitere Betrieb erfolgt direkt mit Docker Compose, ohne zusaetzliche
+Skripte:
+
+```powershell
+docker compose ps
+docker compose logs app
+docker compose down
+```
+
+Stimmen, Ausgaben, Modelle und Konfiguration bleiben unter `data/` erhalten;
+Backups dieses Verzeichnisses sind die Verantwortung des Betreibers.
 
 ## Voraussetzungen
 
