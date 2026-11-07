@@ -45,22 +45,37 @@
 - Docker Compose Konfiguration: bestanden.
 - Testimage auf Python 3.12 mit Gradio 5.50.0 gebaut; FFmpeg/FFprobe sind im
   Container vorhanden.
-- Nach Whisper- und Qwen-Adapter-Ergaenzung: **40 bestanden** mit Fake-Modell-
+- Nach Whisper- und Qwen-Adapter-Ergaenzung: **41 bestanden** mit Fake-Modell-
   und Prompt-Roundtrip-Tests, Offline-Ladepruefung und FFmpeg-Integration.
-  Eine nicht blockierende Starlette-Deprecation-Warnung bleibt. Echte
-  Modellgewichte wurden nicht geladen.
+  Eine nicht blockierende Starlette-Deprecation-Warnung bleibt; die Suite
+  verwendet weiterhin Fake-Modelle.
+- Mit echten lokalen Gewichten und RTX 3080 Laptop GPU: Whisper `base`
+  transkribiert ein synthetisches englisches Testaudio offline in 2,6 s
+  (Sprachwahrscheinlichkeit 0,956); 108 Wortzeitstempel und die Auswahl,
+  Extraktion sowie erneute Transkription eines 30-s-Referenzsamples wurden
+  geprueft. Ein einzelner Null-Dauer-Zeitstempel wurde dabei gefunden und wird
+  vom Whisper-Adapter verworfen.
+- Qwen `Qwen3-TTS-12Hz-0.6B-Base` laedt auf derselben GPU mit BF16/SDPA in
+  136 s. Der NPZ-Prompt-Roundtrip mit echten Tensoren dauerte 1,4 s; die
+  Synthese erzeugte 5,04 s Audio in 16,6 s. Gemessener CUDA-Spitzenspeicher:
+  2,8 GiB. Ein FP16-Lauf scheiterte mit ungueltigen Sampling-Wahrscheinlichkeiten;
+  BF16 funktionierte. Die Eingabe war synthetische Sprache, kein menschliches
+  Referenzaudio.
+- faster-whisper 1.2.1 ist mit PyAV 19 nicht kompatibel
+  (`av.open(..., metadata_errors=...)`); die Whisper-Extra-Abhaengigkeit
+  begrenzt PyAV deshalb auf Versionen unter 19.
 - Gradio-Mount wird im Integrationstest geprueft; UI im Browser und
   Audio-Upload/-Wiedergabe mit echten Modellablaeufen sind noch nicht geprueft.
-- Qwen-Kompatibilitaet, Prompt-Roundtrip mit echten Tensoren, Whisper-Inferenz
-  mit echten Gewichten, CUDA/VRAM, Worker-Abbruch und Modellneustart sind nicht
-  auf Zielhardware geprueft. Es gibt noch keinen Modell-Downloadschritt oder
-  UI-/API-Integration.
+- Die vollstaendige Anwendung nutzt die getesteten Modelle noch nicht.
+  Qwen 1.7B, weitere Whisper-Groessen, reale Nutzerreferenzen, UI/API-Fluss,
+  Worker-Abbruch und Modellneustart sind nicht geprueft. Ein automatisierter
+  Modell-Downloadschritt fehlt.
 
 ### Naechste Schritte
 
-1. Qwen- und faster-whisper-Adapter mit echten lokalen Modellgewichten und
-  Zielhardware verifizieren; Ladezeit, Ressourcen und Prompt-Roundtrip messen.
-2. Whisper-Adapter an Upload-/Stimmenablauf anbinden; Sprache,
+1. Whisper-Adapter an Upload-/Stimmenablauf anbinden; Sprache,
   Segmentfehler sowie kurze/noisy Referenzen pruefen.
+2. Qwen 1.7B und weitere Whisper-Groessen auf Zielhardware pruefen; reale
+  Referenzaufnahmen sowie Worker-Abbruch und Modellneustart untersuchen.
 3. Implementieren: Konfiguration, Worker-Prozess, Stimmenpersistenz und echte
   asynchrone Auftragsannahme.

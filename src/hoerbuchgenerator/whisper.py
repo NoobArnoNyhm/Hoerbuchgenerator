@@ -112,9 +112,18 @@ class FasterWhisperAdapter:
         for segment in segments:
             for word in getattr(segment, "words", None) or ():
                 try:
-                    words.append(WordInterval(float(word.start), float(word.end)))
+                    start, end = float(word.start), float(word.end)
                 except (AttributeError, TypeError, ValueError) as error:
                     raise WhisperError("Whisper hat ungueltige Wortzeitstempel geliefert") from error
+                if (
+                    not math.isfinite(start)
+                    or not math.isfinite(end)
+                    or start < 0
+                    or end < start
+                ):
+                    raise WhisperError("Whisper hat ungueltige Wortzeitstempel geliefert")
+                if end > start:
+                    words.append(WordInterval(start, end))
 
         return Transcription(
             text=text,

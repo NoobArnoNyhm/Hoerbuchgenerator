@@ -41,6 +41,17 @@ def test_transcribe_requests_vad_word_times_and_preserves_language_metadata():
     assert model.calls[0][1]["vad_filter"] is True
 
 
+def test_transcribe_skips_zero_duration_word_timestamps():
+    model = FakeWhisperModel([
+        make_segments("Guten Tag", [WordInterval(0, 0), WordInterval(0.1, 0.5)])
+    ])
+    adapter = FasterWhisperAdapter(model)
+
+    result = adapter.transcribe(Path("sample.wav"))
+
+    assert result.words == (WordInterval(0.1, 0.5),)
+
+
 def test_prepare_reference_uses_complete_word_window_then_transcribes_sample(monkeypatch, tmp_path):
     words = tuple(WordInterval(index, index + 0.5) for index in range(0, 60))
     model = FakeWhisperModel([

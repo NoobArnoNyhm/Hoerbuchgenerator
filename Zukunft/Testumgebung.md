@@ -44,8 +44,26 @@ docker compose -f compose.test.yaml run --rm --entrypoint bash test
 ## Verifizierter Lauf
 
 Am 2026-11-07 wurde das Image gebaut und die komplette Testsuite im Container
-ausgefuehrt: **40 bestanden**. Der FFmpeg-/FFprobe-Integrationstest lief dabei
+ausgefuehrt: **41 bestanden**. Der FFmpeg-/FFprobe-Integrationstest lief dabei
 mit. Es gab eine nicht blockierende Starlette-Deprecation-Warnung.
+
+## Modell-Smoke-Test auf GPU
+
+Am 2026-11-07 wurden die offiziellen Qwen-0.6B-Base- und
+faster-whisper-base-Gewichte lokal gespeichert und in einem separaten
+GPU-Container mit Offline-Ladeflags geprueft. Auf einer RTX 3080 Laptop GPU
+erzeugte faster-whisper aus synthetischer Sprache ein Transkript mit 108
+Wortzeitstempeln; ein 30-Sekunden-Referenzausschnitt wurde extrahiert und
+erneut transkribiert. Qwen lud mit BF16/SDPA in 136 Sekunden, speicherte und
+lud einen echten Prompt als NPZ und synthetisierte daraus 5,04 Sekunden
+Audio. Die gemessene Spitzenbelegung betrug 2,8 GiB CUDA-Speicher. Ein FP16-
+Syntheselauf scheiterte an ungueltigen Sampling-Wahrscheinlichkeiten; BF16
+funktionierte. Dieser Smoke-Test verwendet kuenstlich erzeugte Sprache und
+belegt weder die Qualitaet mit menschlichen Referenzaufnahmen noch den
+integrierten UI-/API- oder Worker-Ablauf.
+
+faster-whisper 1.2.1 funktioniert nicht mit PyAV 19; die optionale
+Whisper-Abhaengigkeit pinnt PyAV daher auf `<19`.
 
 ## Aufbau
 

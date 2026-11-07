@@ -44,14 +44,18 @@ python -m pip install -e ".[dev]"
 python -m pytest
 ```
 
-Die Qwen-/Whisper-Modelle sind noch nicht integriert oder heruntergeladen.
-Der Prototyp ist deshalb weder als fertige Anwendung noch fuer den
-Offline-Abnahmebetrieb geeignet. Den Umsetzungstand und offene Pruefungen
-enthaelt [Zukunft/Fortschritt.md](Zukunft/Fortschritt.md).
+Die Qwen-/Whisper-Adapter wurden mit lokalen Qwen-0.6B-Base- und
+faster-whisper-base-Gewichten in einem separaten GPU-Smoke-Test mit
+Offline-Ladeflags geprueft. Sie sind noch nicht in die UI-/API-Ablaufe
+integriert; die Modellgewichte sind nicht versioniert und eine automatisierte
+Modellinitialisierung fehlt. Der Prototyp ist deshalb weder als fertige
+Anwendung noch fuer den Offline-Abnahmebetrieb geeignet. Den Umsetzungsstand
+und offene Pruefungen enthaelt [Zukunft/Fortschritt.md](Zukunft/Fortschritt.md).
 
 Die faster-whisper- und Qwen-Adapter sind optionale Extras und laden nur
 ausgewaehlte, vollstaendige Modellverzeichnisse aus lokalen Pfaden. Die
 Abhaengigkeiten koennen fuer Adapterentwicklung mit
 `python -m pip install -e ".[whisper,qwen]"` installiert werden.
-Qwen-Prompts werden als NPZ-Datei ohne Pickle gespeichert. Modelldownload,
-Hardware-Smoke-Test und Integration in die Anwendungsablaeufe stehen noch aus.
+Qwen-Prompts werden als NPZ-Datei ohne Pickle gespeichert. Die Pruefung mit
+Qwen 1.7B, weiteren Whisper-Modellen und realen Referenzaufnahmen sowie die
+Integration in die Anwendungsablaeufe stehen noch aus.

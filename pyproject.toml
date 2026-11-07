@@ -19,6 +19,7 @@ dev = [
     "pytest>=8.3,<9",
 ]
 whisper = [
+    "av>=11,<19",
     "faster-whisper>=1.1,<2",
 ]
 qwen = [
