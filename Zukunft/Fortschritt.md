@@ -163,6 +163,11 @@
   getestet: konfigurierte Qwen-/Whisper-Modelle erreichen den Status `ready`,
   der Worker erhaelt die erwarteten Cachepfade und wird beim Shutdown
   geschlossen. Ein echter GPU-/Netzwerk-Abnahmelauf ist davon nicht abgedeckt.
+- Die Mehrabsatz-Synthesepipeline mit zwoelf synthetischen Testabschnitten
+  geprueft: Reihenfolge, monotoner Chunkfortschritt, PCM-WAV-Format,
+  Absatzpausen und Bereinigung temporaerer Dateien stimmen. Die Audio-
+  qualitaet der generierten Sprache und menschliche Referenzaufnahmen sind
+  damit nicht bewertet.
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
 - Reale Nutzerreferenzen, UI-Fluss im Browser und Hoerbuchqualitaet sind noch
