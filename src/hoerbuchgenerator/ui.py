@@ -87,16 +87,34 @@ def create_ui_callbacks(
                 )
                 return "", message, True, message
             total_upload_bytes = 0
-            for file_path in uploaded_files:
-                path = Path(file_path)
+            file_paths = [Path(file_path) for file_path in uploaded_files]
+            for path in file_paths:
                 if path.suffix.lower() != ".txt":
                     message = "Erlaubt sind nur TXT-Dateien."
                     return "", message, True, message
-                total_upload_bytes += path.stat().st_size
-                if total_upload_bytes > MAX_TEXT_BYTES:
-                    message = "Die Textdatei ueberschreitet das Uploadlimit."
+                try:
+                    total_upload_bytes += path.stat().st_size
+                except OSError:
+                    logger.exception(
+                        "Gradio-Textdatei %s konnte nicht geprueft werden",
+                        path.name,
+                    )
+                    message = "Eine TXT-Datei konnte nicht gelesen werden."
                     return "", message, True, message
-                encoded = await asyncio.to_thread(path.read_bytes)
+            if total_upload_bytes > MAX_TEXT_BYTES:
+                message = "Die Textdateien ueberschreiten gemeinsam das Uploadlimit."
+                return "", message, True, message
+
+            for path in file_paths:
+                try:
+                    encoded = await asyncio.to_thread(path.read_bytes)
+                except OSError:
+                    logger.exception(
+                        "Gradio-Textdatei %s konnte nicht gelesen werden",
+                        path.name,
+                    )
+                    message = "Eine TXT-Datei konnte nicht gelesen werden."
+                    return "", message, True, message
                 offset = [0]
 
                 async def read_file(

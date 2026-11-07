@@ -1,5 +1,6 @@
 import asyncio
 import json
+from pathlib import Path
 import time
 from threading import Event
 from types import SimpleNamespace
@@ -340,6 +341,83 @@ def test_gradio_synthesis_rejects_too_many_files_before_reading(tmp_path):
     )
 
     assert submitted == ("", message, True, message)
+
+
+def test_gradio_synthesis_checks_combined_file_size_before_reading(
+    tmp_path,
+    monkeypatch,
+):
+    async def unused_synthesis(*args):
+        raise AssertionError("Oversized upload must be rejected before submission")
+
+    async def unused_upload(*args):
+        raise AssertionError("Voice upload is not expected")
+
+    first = tmp_path / "chapter-one.txt"
+    first.write_text("Small chapter", encoding="utf-8")
+    second = tmp_path / "chapter-two.txt"
+    with second.open("wb") as file:
+        file.truncate(MAX_TEXT_BYTES)
+
+    def reject_read_bytes(self):
+        raise AssertionError("Files must not be read before aggregate size validation")
+
+    monkeypatch.setattr(Path, "read_bytes", reject_read_bytes)
+    callbacks = create_ui_callbacks(
+        FastAPI(),
+        tmp_path,
+        unused_upload,
+        unused_synthesis,
+        lambda: True,
+    )
+
+    submitted = asyncio.run(
+        callbacks[1](
+            "",
+            "",
+            [str(first), str(second)],
+            "test-voice",
+            None,
+            "wav",
+        )
+    )
+    message = "Die Textdateien ueberschreiten gemeinsam das Uploadlimit."
+
+    assert submitted == ("", message, True, message)
+
+
+def test_gradio_synthesis_reports_unreadable_text_file(tmp_path):
+    async def unused_synthesis(*args):
+        raise AssertionError("Unreadable file must not be submitted")
+
+    async def unused_upload(*args):
+        raise AssertionError("Voice upload is not expected")
+
+    callbacks = create_ui_callbacks(
+        FastAPI(),
+        tmp_path,
+        unused_upload,
+        unused_synthesis,
+        lambda: True,
+    )
+
+    submitted = asyncio.run(
+        callbacks[1](
+            "",
+            "",
+            [str(tmp_path / "missing.txt")],
+            "test-voice",
+            None,
+            "wav",
+        )
+    )
+
+    assert submitted == (
+        "",
+        "Eine TXT-Datei konnte nicht gelesen werden.",
+        True,
+        "Eine TXT-Datei konnte nicht gelesen werden.",
+    )
 
 
 def test_gradio_synthesis_preserves_uploaded_file_order_and_content(tmp_path):
