@@ -152,8 +152,9 @@
 - Der App-Lifecycle erzwingt waehrend der Laufzeit Hugging-Face- und
   Transformers-Offline-Modus sowie abgeschaltete Hub-Telemetrie und
   `DO_NOT_TRACK`; vorherige Prozessumgebungswerte werden nach Shutdown
-  wiederhergestellt. Gradio-Analytics bleiben in der UI deaktiviert. Ein
-  Netzwerktest auf einem isolierten Runtime-Container steht weiterhin aus.
+  wiederhergestellt. Gradio-Analytics bleiben in der UI deaktiviert. Die
+  Docker-Runtime sperrt ausgehende Verbindungen nicht; sie verwendet lokale
+  Modell-Caches und startet im Offline-Modus.
 - Die lokale Cache-Erkennung an die Qwen-/Whisper-Adapter angeglichen:
   notwendige Gewichts- und Tokenizerdateien werden vor Workerstart geprueft.
   Unvollstaendige Verzeichnisse lassen den API-Dienst mit `not_initialized`
@@ -203,9 +204,10 @@
 - Die UI prueft Dateitypen und Gesamtgroesse aller Textdateien vor dem Einlesen
   und meldet nicht lesbare oder zwischenzeitlich entfernte Dateien verstaendlich.
 - Runtime-Dockerimage mit FFmpeg, Qwen-/Whisper-Abhaengigkeiten und PyTorch
-  2.6.0/CUDA 12.4 erstellt. Compose trennt den Offline-App-Dienst vom
-  netzwerkfaehigen Modell-Initializer, bindet `data/` persistent ein,
-  veroeffentlicht nur den Loopback-Port und prueft Modellbereitschaft.
+  2.6.0/CUDA 12.4 erstellt. Der Modellabruf erfolgt im separaten
+  Initialisierungsschritt; der Runtime-Dienst verwendet lokale Caches und den
+  Offline-Modus. Compose bindet `data/` persistent ein, veroeffentlicht nur
+  den Loopback-Port und prueft Modellbereitschaft.
 - Ein Initialisierungsskript je Shell (PowerShell/Bash) baut das Image,
   initialisiert Modelle und startet den Compose-Service `hoerbuchgenerator`. Status,
   Logs und Stop bleiben direkte Compose-Befehle. Compose-Konfiguration,
@@ -219,6 +221,13 @@
   Stimme automatisch aus. Ein Regressionstest bestaetigt, dass eine vorhandene
   Auswahl bei neuen Profilen erhalten bleibt; die Synthese-Fehlermeldung
   verweist auf die Profilauswahl statt auf einen manuell einzugebenden Slug.
+- GPU-Runtime mit lokalen Qwen-0.6B- und Whisper-Base-Caches gestartet:
+  Compose-Healthcheck und API-Status meldeten `ready`, beide Modelle waren
+  geladen und `/ui` war am Loopback-Port erreichbar. Der Container verwendete
+  die Offline- und Telemetrie-Abschaltvariablen; ausgehende Verbindungen
+  werden durch das normale Compose-Bridge-Netz nicht gesperrt. Die getrennte
+  Compose-Startprobe bestaetigte, dass ein internes Netz den Host-Port in
+  dieser Docker-Engine blockiert; deshalb wird keine Egress-Sperre erzwungen.
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
 - Reale Nutzerreferenzen, UI-Fluss im Browser und Hoerbuchqualitaet sind noch
