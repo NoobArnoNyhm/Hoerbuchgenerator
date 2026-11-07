@@ -67,6 +67,9 @@ def create_ui_callbacks(
                 return "", message, True, message
 
             encoded = text.encode("utf-8")
+            if len(encoded) > MAX_TEXT_BYTES:
+                message = "Die Texteingabe ueberschreitet das Uploadlimit."
+                return "", message, True, message
             offset = 0
 
             async def read_text(size: int) -> bytes:

@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from hoerbuchgenerator.main import create_app
+from hoerbuchgenerator.synthesis import MAX_TEXT_BYTES
 from hoerbuchgenerator.ui import create_ui_callbacks
 
 
@@ -271,6 +272,41 @@ def test_gradio_synthesis_requires_selected_voice(tmp_path):
         "Bitte eine Stimme auswaehlen.",
         True,
         "Bitte eine Stimme auswaehlen.",
+    )
+
+
+def test_gradio_synthesis_rejects_text_over_byte_limit(tmp_path):
+    async def unused_synthesis(*args):
+        raise AssertionError("Oversized text must be rejected before submission")
+
+    async def unused_upload(*args):
+        raise AssertionError("Voice upload is not expected")
+
+    callbacks = create_ui_callbacks(
+        FastAPI(),
+        tmp_path,
+        unused_upload,
+        unused_synthesis,
+        lambda: True,
+    )
+    oversized_text = "ä" * (MAX_TEXT_BYTES // 2 + 1)
+
+    submitted = asyncio.run(
+        callbacks[1](
+            oversized_text,
+            "Beispiel",
+            None,
+            "test-voice",
+            None,
+            "wav",
+        )
+    )
+
+    assert submitted == (
+        "",
+        "Die Texteingabe ueberschreitet das Uploadlimit.",
+        True,
+        "Die Texteingabe ueberschreitet das Uploadlimit.",
     )
 
 

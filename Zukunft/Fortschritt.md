@@ -196,6 +196,8 @@
 - Ein gezielter Gradio-Callbacktest prueft, dass mehrere TXT-Dateien mit
   Originalreihenfolge, Dateinamen und vollstaendigem UTF-8-Inhalt an den
   Syntheseauftrag uebergeben werden.
+- Die direkte Texteingabe der Gradio-UI wird vor Auftragserstellung gegen das
+  gemeinsame Byte-Uploadlimit geprueft; ein Test deckt UTF-8-Mehrbytezeichen ab.
 - Das manuelle Gradio-Stimmen-Slug-Feld durch eine Auswahl vorhandener Profile
   ersetzt. Die Auswahl wird beim Laden und mit der Statusaktualisierung
   synchronisiert, behaelt gueltige Auswahlen bei und waehlt eine neu erstellte
