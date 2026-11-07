@@ -149,6 +149,11 @@
   verhindern weiterhin den Start nicht, werden aber mit ihren erwarteten
   Pfaden protokolliert; der API-Status bleibt `not_initialized`. Die gezielten
   App- und API-Regressionstests bestanden mit **13 Tests**.
+- Der App-Lifecycle erzwingt waehrend der Laufzeit Hugging-Face- und
+  Transformers-Offline-Modus sowie abgeschaltete Hub-Telemetrie und
+  `DO_NOT_TRACK`; vorherige Prozessumgebungswerte werden nach Shutdown
+  wiederhergestellt. Gradio-Analytics bleiben in der UI deaktiviert. Ein
+  Netzwerktest auf einem isolierten Runtime-Container steht weiterhin aus.
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
 - Reale Nutzerreferenzen, UI-Fluss im Browser und Hoerbuchqualitaet sind noch

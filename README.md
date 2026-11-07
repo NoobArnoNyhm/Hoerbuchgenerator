@@ -33,7 +33,10 @@ standardmaessig CUDA, BF16 und SDPA; `QWEN_DEVICE_MAP` kann das Geraet anpassen.
 Nicht unterstuetzte Modellnamen brechen den Start mit einer konkreten Meldung
 ab. Fehlen lokale Modell-Caches, startet die Anwendung ohne Modellservice,
 protokolliert die erwarteten Cachepfade und meldet den Status als
-`not_initialized`; es werden keine Modelle heruntergeladen.
+`not_initialized`; es werden keine Modelle heruntergeladen. Waehrend der
+Anwendungslaufzeit erzwingt sie Hugging-Face-/Transformers-Offline-Modus und
+deaktiviert Hub-Telemetrie; die vorherigen Prozessumgebungswerte werden beim
+Herunterfahren wiederhergestellt.
 
 In der UI koennen Sie einen Stimmenname und eine WAV-/MP3-Referenzaufnahme
 angeben. Der Auftrag wird angenommen, der gemeinsame Status alle zwei Sekunden

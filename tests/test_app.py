@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -50,6 +52,33 @@ def test_startup_creates_persistent_data_directories(tmp_path):
     assert (tmp_path / "output").is_dir()
     assert (tmp_path / "work").is_dir()
     assert (tmp_path / "config").is_dir()
+
+
+def test_runtime_enforces_offline_model_loading_and_restores_environment(
+    tmp_path,
+    monkeypatch,
+):
+    variables = {
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1",
+        "HF_HUB_DISABLE_TELEMETRY": "1",
+        "DO_NOT_TRACK": "1",
+    }
+    for variable in variables:
+        monkeypatch.setenv(variable, "0")
+
+    with TestClient(create_app(tmp_path)):
+        assert {
+            variable: os.environ[variable]
+            for variable in variables
+        } == variables
+
+    assert {
+        variable: os.environ[variable]
+        for variable in variables
+    } == {
+        variable: "0" for variable in variables
+    }
 
 
 @pytest.mark.parametrize(

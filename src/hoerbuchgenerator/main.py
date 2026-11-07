@@ -1,5 +1,5 @@
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 import logging
 from pathlib import Path
 import os
@@ -39,6 +39,13 @@ from hoerbuchgenerator.ui import create_ui, create_ui_callbacks
 
 logger = logging.getLogger(__name__)
 
+_OFFLINE_ENVIRONMENT = {
+    "HF_HUB_OFFLINE": "1",
+    "TRANSFORMERS_OFFLINE": "1",
+    "HF_HUB_DISABLE_TELEMETRY": "1",
+    "DO_NOT_TRACK": "1",
+}
+
 
 class _WorkerSynthesizer:
     def __init__(self, worker: VoiceWorker, loop: asyncio.AbstractEventLoop, cancel_event):
@@ -73,68 +80,86 @@ class _WorkerSynthesizer:
             raise SynthesisError(str(error)) from error
 
 
+@contextmanager
+def _offline_runtime_environment(previous: dict[str, str | None]):
+    os.environ.update(_OFFLINE_ENVIRONMENT)
+    try:
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
 def create_app(
     data_dir: Path | None = None,
     voice_profiles: VoiceProfileService | None = None,
 ) -> FastAPI:
     root = data_dir or Path(os.environ.get("APP_DATA_DIR", "data"))
+    previous_environment = {
+        key: os.environ.get(key)
+        for key in _OFFLINE_ENVIRONMENT
+    }
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
-        for directory in ("models/huggingface", "models/whisper", "voices", "output", "work", "config"):
-            (root / directory).mkdir(parents=True, exist_ok=True)
-        if application.state.voice_worker is None and not application.state.voice_available:
-            qwen_name = os.environ.get("QWEN_MODEL", QWEN_BASE_MODELS[0])
-            whisper_name = os.environ.get("WHISPER_MODEL", "base")
-            if qwen_name not in QWEN_BASE_MODELS:
-                raise RuntimeError(
-                    f"Nicht unterstuetztes Qwen-Base-Modell: {qwen_name}"
-                )
-            if whisper_name not in WHISPER_MODELS:
-                raise RuntimeError(
-                    f"Nicht unterstuetztes Whisper-Modell: {whisper_name}"
-                )
-            qwen_config = root / "models" / "huggingface" / qwen_name / "config.json"
-            whisper_config = root / "models" / "whisper" / whisper_name / "config.json"
-            if qwen_config.is_file() and whisper_config.is_file():
-                application.state.voice_worker = VoiceWorker(
-                    {
-                        "qwen_model": qwen_name,
-                        "whisper_model": whisper_name,
-                        "qwen_models_dir": str(root / "models" / "huggingface"),
-                        "whisper_models_dir": str(root / "models" / "whisper"),
-                        "whisper_device": os.environ.get("WHISPER_DEVICE", "cpu"),
-                        "whisper_compute_type": os.environ.get(
-                            "WHISPER_COMPUTE_TYPE",
-                            "int8",
-                        ),
-                        "qwen_device_map": os.environ.get("QWEN_DEVICE_MAP", "cuda:0"),
+        with _offline_runtime_environment(previous_environment):
+            for directory in ("models/huggingface", "models/whisper", "voices", "output", "work", "config"):
+                (root / directory).mkdir(parents=True, exist_ok=True)
+            if application.state.voice_worker is None and not application.state.voice_available:
+                qwen_name = os.environ.get("QWEN_MODEL", QWEN_BASE_MODELS[0])
+                whisper_name = os.environ.get("WHISPER_MODEL", "base")
+                if qwen_name not in QWEN_BASE_MODELS:
+                    raise RuntimeError(
+                        f"Nicht unterstuetztes Qwen-Base-Modell: {qwen_name}"
+                    )
+                if whisper_name not in WHISPER_MODELS:
+                    raise RuntimeError(
+                        f"Nicht unterstuetztes Whisper-Modell: {whisper_name}"
+                    )
+                qwen_config = root / "models" / "huggingface" / qwen_name / "config.json"
+                whisper_config = root / "models" / "whisper" / whisper_name / "config.json"
+                if qwen_config.is_file() and whisper_config.is_file():
+                    application.state.voice_worker = VoiceWorker(
+                        {
+                            "qwen_model": qwen_name,
+                            "whisper_model": whisper_name,
+                            "qwen_models_dir": str(root / "models" / "huggingface"),
+                            "whisper_models_dir": str(root / "models" / "whisper"),
+                            "whisper_device": os.environ.get("WHISPER_DEVICE", "cpu"),
+                            "whisper_compute_type": os.environ.get(
+                                "WHISPER_COMPUTE_TYPE",
+                                "int8",
+                            ),
+                            "qwen_device_map": os.environ.get("QWEN_DEVICE_MAP", "cuda:0"),
+                        }
+                    )
+                    await application.state.voice_worker.start()
+                    application.state.voice_available = True
+                    application.state.model_names = {
+                        "qwen": qwen_name,
+                        "whisper": whisper_name,
                     }
-                )
-                await application.state.voice_worker.start()
-                application.state.voice_available = True
-                application.state.model_names = {
-                    "qwen": qwen_name,
-                    "whisper": whisper_name,
-                }
-            else:
-                logger.warning(
-                    "Lokale Modell-Caches fehlen oder sind unvollstaendig; "
-                    "Modellinitialisierung uebersprungen "
-                    "(Qwen-Konfiguration: %s, Whisper-Konfiguration: %s)",
-                    qwen_config,
-                    whisper_config,
-                )
-        try:
-            yield
-        finally:
-            active_job = await application.state.jobs.active()
-            if active_job is not None:
-                await application.state.jobs.request_cancel(active_job["id"])
-            if application.state.voice_worker is not None:
-                await application.state.voice_worker.close()
-            if application.state.background_tasks:
-                await asyncio.gather(*application.state.background_tasks)
+                else:
+                    logger.warning(
+                        "Lokale Modell-Caches fehlen oder sind unvollstaendig; "
+                        "Modellinitialisierung uebersprungen "
+                        "(Qwen-Konfiguration: %s, Whisper-Konfiguration: %s)",
+                        qwen_config,
+                        whisper_config,
+                    )
+            try:
+                yield
+            finally:
+                active_job = await application.state.jobs.active()
+                if active_job is not None:
+                    await application.state.jobs.request_cancel(active_job["id"])
+                if application.state.voice_worker is not None:
+                    await application.state.voice_worker.close()
+                if application.state.background_tasks:
+                    await asyncio.gather(*application.state.background_tasks)
 
     app = FastAPI(
         title="Hoerbuchgenerator API",
