@@ -64,6 +64,18 @@ class VoiceProfileService:
         self._qwen = qwen
         self._qwen_model_name = qwen_model_name
 
+    def synthesize(
+        self,
+        text: str,
+        language: str,
+        prompt_path: Path,
+    ) -> tuple[np.ndarray, int]:
+        try:
+            prompt = self._qwen.load_voice_prompt(prompt_path)
+            return self._qwen.synthesize(text, language, prompt)
+        except QwenError as error:
+            raise VoiceProfileError(str(error)) from error
+
     def create(
         self,
         upload: BinaryIO,

@@ -128,14 +128,24 @@
   Profil samt Beispielaudio erstellt. Der alte Slug und Arbeitsdateien des
   Abbruchs blieben unveroeffentlicht bzw. wurden entfernt. GPU-Container
   endete mit Exit-Code 0.
+- Text- und Mehrdatei-Hoerbuchsynthese fuer API und Gradio ergaenzt: sequenzielle
+  Qwen-Chunks, 0,3-s-Satz-/Chunk- und 0,7-s-Absatzpausen, PCM-Mono-24-kHz-
+  Normalisierung, EBU-R128-Ziel -20 LUFS/-2 dBTP sowie validierte WAV-/MP3-
+  Ausgabe. Ausgaben werden atomar und ohne Ueberschreiben veroeffentlicht;
+  Bulk-Ergebnisse, Chunkfortschritt, Abbruch und sichere Downloadroute sind an
+  den gemeinsamen Jobslot gebunden.
+- Gezielte Tests fuer Chunk-/Pausengrenzen, WAV/MP3, Dateiuploads, Jobstatus,
+  Downloads, UI-Konfiguration, Worker und Bulk-Teilfehler bestanden: **17 Tests**.
+- Echter GPU-Ende-zu-Ende-Lauf mit Whisper base und Qwen 0.6B: synthetische
+  Referenzstimme erstellt, anschliessend Text als WAV (46.124 Bytes) und MP3
+  (35.229 Bytes) generiert und ueber die Downloadroute geladen. Der Lauf endete
+  erfolgreich; temporaere Arbeitsdateien wurden bereinigt.
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
-- Die UI-Stimmenanlage ist implementiert. Hoerbuchsynthese, reale
-  Nutzerreferenzen und UI-Fluss im Browser sind noch nicht geprueft. Ein
-  automatisierter Modell-Downloadschritt fehlt.
+- Reale Nutzerreferenzen, UI-Fluss im Browser und Hoerbuchqualitaet sind noch
+  nicht geprueft. Ein automatisierter Modell-Downloadschritt fehlt.
 
 ### Naechste Schritte
 
-1. Reale Referenzaufnahmen untersuchen und Hoerbuchsynthese umsetzen.
-2. Konfiguration, kontrollierten Modellneustart und Offline-Betrieb weiter
-  haerten.
+1. Hoerbuchqualitaet mit laengeren Texten und realen Referenzaufnahmen pruefen.
+2. Konfiguration, Offline-Betrieb und Modellinitialisierung weiter haerten.

@@ -5,8 +5,8 @@ Whisper-Transkription. Der Prototyp bietet einen asynchronen API-Ablauf zum
 Anlegen von Stimmenprofilen mit Transkript, wiederverwendbarem Qwen-Prompt und
 Beispielaudio. Die Gradio-Oberflaeche und die versionierte API verwenden
 denselben Stimmenauftrag und Jobstatus. Qwen und Whisper laufen in einem
-separaten Worker-Prozess; Hoerbuchsynthese und automatischer Modelldownload
-sind noch nicht implementiert.
+separaten Worker-Prozess. Hoerbuchsynthese ist verfuegbar; automatischer
+Modelldownload ist noch nicht implementiert.
 
 ## Voraussetzungen
 
@@ -51,6 +51,25 @@ neu gestartet und laedt beide lokalen Modelle erneut; waehrenddessen bleibt der
 globale Auftragsslot belegt. Nicht veroeffentlichte Profil- und Arbeitsdateien
 des abgebrochenen Auftrags werden entfernt.
 
+Kurzen Text als WAV synthetisieren und Ergebnis herunterladen:
+
+```powershell
+curl.exe -F "text=Ein kurzer Beispieltext." -F "name=Kapitel Eins" `
+  -F "voice=meine_stimme" -F "format=wav" `
+  http://127.0.0.1:8000/api/v1/synthesis/text
+curl.exe -o kapitel_eins.wav `
+  http://127.0.0.1:8000/api/v1/output/kapitel_eins.wav
+```
+
+Mehrere UTF-8-Textdateien koennen gesammelt ueber
+`POST /api/v1/synthesis/files` mit wiederholten `files=@kapitel.txt`-Feldern
+eingereicht werden. `voice` ist der Stimmen-Slug; `language` ist optional und
+akzeptiert einen Sprachcode wie `de` oder `en` (standardmaessig die erkannte
+Stimmensprache). `format` ist `wav` oder `mp3` und standardmaessig `mp3`.
+Chunks werden sequenziell synthetisiert, mit EBU-R128-Lautheitsnormalisierung
+auf -20 LUFS (True Peak -2 dBTP) und getesteten Pausen zusammengefuegt und erst
+nach Validierung atomar in `data/output/` veroeffentlicht.
+
 ## Tests
 
 Empfohlen ist die dokumentierte, isolierte Docker-Testumgebung unter
@@ -83,5 +102,6 @@ Abhaengigkeiten koennen fuer Adapterentwicklung mit
 `python -m pip install -e ".[whisper,qwen]"` installiert werden.
 Qwen-Prompts werden als NPZ-Datei ohne Pickle gespeichert. Die technische
 Pruefung mit Qwen 1.7B und weiteren Whisper-Modellen sowie der Abbruch und
-Neustart des Workers waehrend eines echten GPU-Auftrags sind erfolgt. Tests
-mit menschlichen Referenzaufnahmen und Hoerbuchsynthese stehen noch aus.
+Neustart des Workers waehrend eines echten GPU-Auftrags sind erfolgt. WAV- und
+MP3-Hoerbuchsynthese wurde ebenfalls mit lokalen Modellen geprueft. Tests mit
+menschlichen Referenzaufnahmen und Abnahme der Hoerbuchqualitaet stehen noch aus.

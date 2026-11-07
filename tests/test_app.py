@@ -18,9 +18,24 @@ def test_status_is_versioned_and_does_not_claim_models_are_loaded(tmp_path):
 def test_gradio_ui_is_mounted_separately_and_hidden_from_api_schema():
     app = create_app()
     mounted_ui = next(route.app for route in app.routes if route.path == "/ui")
+    blocks = mounted_ui.get_blocks()
+    labels = {
+        component.get("props", {}).get("label")
+        for component in blocks.config["components"]
+    }
 
-    assert mounted_ui.get_blocks().api_open is False
+    assert blocks.api_open is False
+    assert "Text" in labels
+    assert "TXT-Dateien (optional)" in labels
+    assert "Stimmen-Slug" in labels
+    assert any(
+        function.fn.__name__ == "submit_synthesis_ui"
+        for function in blocks.fns.values()
+    )
     assert "/api/v1/status" in app.openapi()["paths"]
+    assert "/api/v1/synthesis/text" in app.openapi()["paths"]
+    assert "/api/v1/synthesis/files" in app.openapi()["paths"]
+    assert "/api/v1/output/{name}" in app.openapi()["paths"]
     assert not any(path.startswith("/ui") for path in app.openapi()["paths"])
 
 

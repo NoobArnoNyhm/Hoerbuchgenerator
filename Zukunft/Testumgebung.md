@@ -114,6 +114,19 @@ erzeugte erfolgreich ein Profil samt Beispielaudio. Das abgebrochene Profil
 wurde nicht veroeffentlicht und die auftragsbezogenen Arbeitsdateien wurden
 entfernt. Der GPU-Smoke-Test endete mit Exit-Code 0.
 
+Die neue Textsynthese wurde ebenfalls ueber FastAPI mit den lokalen Modellen
+ausgefuehrt. Nach dem Anlegen eines synthetischen Stimmenprofils wurden ein
+englischer Beispieltext als WAV (46.124 Bytes) und MP3 (35.229 Bytes)
+generiert, beide Ergebnisse ueber die Downloadroute geladen und die
+Auftrags-Arbeitsdateien bereinigt. Der Lauf endete mit Exit-Code 0; reale
+Referenzaufnahmen wurden nicht verwendet. Die EBU-R128-
+Lautheitsnormalisierung (-20 LUFS, -2 dBTP) ist zusaetzlich im gezielten
+Audio-Regressionstest geprueft.
+
+Die fokussierte Regression fuer Synthese, API, Gradio-Konfiguration,
+Bulk-Teilfehler, Worker und bestehende Stimmenrouten bestand mit **17 Tests**.
+Die vollstaendige Suite wurde in diesem Schritt nicht erneut ausgefuehrt.
+
 ## Aufbau
 
 - `Dockerfile.test`: Python-/FFmpeg-Image und Installation des Projekts samt

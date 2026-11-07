@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 from threading import Event
 from typing import Any, Callable
+import wave
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,10 @@ class VoiceWorkerError(RuntimeError):
 
 
 class VoiceWorkerCancelled(VoiceWorkerError):
+    pass
+
+
+class VoiceWorkerCommandError(VoiceWorkerError):
     pass
 
 
@@ -107,7 +112,7 @@ class VoiceWorker:
                 if response.get("type") == "completed":
                     return response["result"]
                 if response.get("type") == "failed":
-                    raise VoiceWorkerError(response["error"])
+                    raise VoiceWorkerCommandError(response["error"])
                 raise VoiceWorkerError("Der Stimmen-Worker lieferte eine ungueltige Antwort")
 
             if cancel_event.is_set():
@@ -247,10 +252,22 @@ def _run_voice_worker(connection: Connection, settings: dict[str, str]) -> None:
             continue
 
         command = message["command"]
-        if command.get("action") != "create_voice":
+        if command.get("action") not in {"create_voice", "synthesize_chunk"}:
             connection.send({"type": "failed", "error": "Unbekannter Worker-Auftrag"})
             continue
         try:
+            if command["action"] == "synthesize_chunk":
+                audio, sample_rate = service.synthesize(
+                    command["text"],
+                    command["language"],
+                    Path(command["voice_dir"]) / "voice-prompt.npz",
+                )
+                from hoerbuchgenerator.synthesis import _write_pcm
+
+                _write_pcm(Path(command["destination"]), audio, sample_rate)
+                connection.send({"type": "completed", "result": {"sample_rate": sample_rate}})
+                continue
+
             with Path(command["upload_path"]).open("rb") as upload:
                 created = service.create(
                     upload,

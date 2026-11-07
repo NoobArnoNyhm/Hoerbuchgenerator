@@ -67,7 +67,14 @@ class JobManager:
     def cancel_event(self, job_id: str) -> Event:
         return self._cancel_events[job_id]
 
-    async def update(self, job_id: str, phase: str, *, total: int | None = None) -> bool:
+    async def update(
+        self,
+        job_id: str,
+        phase: str,
+        *,
+        total: int | None = None,
+        completed: int | None = None,
+    ) -> bool:
         async with self._lock:
             job = self._jobs.get(job_id)
             if job is None or self._active_id != job_id or job.state == "cancel_requested":
@@ -75,6 +82,8 @@ class JobManager:
             job.state = "running"
             job.phase = phase
             job.total = total
+            if completed is not None:
+                job.completed = completed
             return True
 
     async def finish(
