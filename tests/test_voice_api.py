@@ -29,6 +29,10 @@ class FakeVoiceProfiles:
             example.setsampwidth(2)
             example.setframerate(24000)
             example.writeframes(b"\0\0" * 10)
+        (example_dir / "metadata.json").write_text(
+            json.dumps({"name": name, "slug": "test-voice", "language": "de"}),
+            encoding="utf-8",
+        )
         return SimpleNamespace(name=name, slug="test-voice", language="de")
 
 
@@ -219,7 +223,11 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
     assert refreshed[5]["choices"] == ["test-voice"]
     assert refreshed[5]["value"] == "test-voice"
 
-    (tmp_path / "voices" / "another-voice").mkdir()
+    create_voice_profile(
+        tmp_path / "voices",
+        "another-voice",
+        name="Another voice",
+    )
     refreshed_again = asyncio.run(
         ui.fns[2].fn(submitted[0], refreshed[6], refreshed[5]["value"])
     )
@@ -242,6 +250,19 @@ def test_gradio_synthesis_requires_selected_voice(tmp_path):
         True,
         "Bitte eine Stimme auswaehlen.",
     )
+
+
+def test_gradio_refresh_reports_invalid_voice_profiles(tmp_path):
+    broken_profile = tmp_path / "voices" / "broken-voice"
+    broken_profile.mkdir(parents=True)
+    app = create_app(tmp_path)
+    ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
+
+    refreshed = asyncio.run(ui.fns[2].fn("", "", None))
+
+    assert "Stimmenprofil broken-voice ist ungueltig." in refreshed[1]
+    assert refreshed[5]["choices"] == []
+    assert refreshed[5]["value"] is None
 
 
 def test_gradio_submission_respects_shared_busy_job_slot(tmp_path):

@@ -1,4 +1,3 @@
-import json
 import logging
 import re
 from collections.abc import Awaitable, Callable
@@ -7,6 +6,8 @@ from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
+
+from hoerbuchgenerator.voice_catalog import VoiceCatalogError, list_voice_profiles
 
 
 logger = logging.getLogger(__name__)
@@ -29,66 +30,13 @@ def register_api_routes(
 
     @app.get("/api/v1/voices", tags=["voices"])
     async def list_voices() -> dict[str, list[dict[str, object]]]:
-        voices_dir = root / "voices"
-        voices = []
-        if not voices_dir.is_dir():
-            return {"voices": voices}
-
-        for profile_dir in sorted(voices_dir.iterdir(), key=lambda path: path.name):
-            if (
-                profile_dir.name.startswith(".")
-                or profile_dir.is_symlink()
-                or not profile_dir.is_dir()
-            ):
-                continue
-            metadata_path = profile_dir / "metadata.json"
-            if not metadata_path.is_file() or metadata_path.is_symlink():
-                raise HTTPException(
-                    status_code=500,
-                    detail={"code": "voice_profile_invalid"},
-                )
-            try:
-                metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-            except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-                logger.exception(
-                    "Metadaten fuer Stimmenprofil %s konnten nicht gelesen werden",
-                    profile_dir.name,
-                )
-                raise HTTPException(
-                    status_code=500,
-                    detail={"code": "voice_profile_invalid"},
-                ) from error
-            if (
-                not isinstance(metadata, dict)
-                or not isinstance(metadata.get("name"), str)
-                or metadata.get("slug") != profile_dir.name
-                or not isinstance(metadata.get("language"), str)
-            ):
-                logger.error(
-                    "Metadaten fuer Stimmenprofil %s haben ein ungueltiges Format",
-                    profile_dir.name,
-                )
-                raise HTTPException(
-                    status_code=500,
-                    detail={"code": "voice_profile_invalid"},
-                )
-
-            example_path = profile_dir / "example.wav"
-            voices.append(
-                {
-                    "slug": profile_dir.name,
-                    "name": metadata["name"],
-                    "language": metadata["language"],
-                    "qwen_model": metadata.get("qwen_model"),
-                    "created_at": metadata.get("created_at"),
-                    "example_audio_url": (
-                        f"/api/v1/voices/{profile_dir.name}/example"
-                        if example_path.is_file() and not example_path.is_symlink()
-                        else None
-                    ),
-                }
-            )
-        return {"voices": voices}
+        try:
+            return {"voices": list_voice_profiles(root)}
+        except VoiceCatalogError as error:
+            raise HTTPException(
+                status_code=500,
+                detail={"code": "voice_profile_invalid"},
+            ) from error
 
     @app.get("/api/v1/voices/{slug}/example", tags=["voices"])
     async def get_voice_example(slug: str) -> FileResponse:

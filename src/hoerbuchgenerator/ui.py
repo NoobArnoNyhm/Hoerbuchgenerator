@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException
 
 from hoerbuchgenerator.synthesis import MAX_TEXT_BYTES
 from hoerbuchgenerator.voice_profiles import QWEN_LANGUAGES
+from hoerbuchgenerator.voice_catalog import VoiceCatalogError, list_voice_profiles
 
 
 logger = logging.getLogger(__name__)
@@ -137,13 +138,13 @@ def create_ui_callbacks(
             f"Qwen: `{models['qwen'] or 'nicht geladen'}` · "
             f"Whisper: `{models['whisper'] or 'nicht geladen'}`"
         )
-        profile_names = sorted(
-            path.name
-            for path in (root / "voices").iterdir()
-            if not path.name.startswith(".")
-            and not path.is_symlink()
-            and path.is_dir()
-        ) if (root / "voices").is_dir() else []
+        catalog_error = None
+        try:
+            voices = list_voice_profiles(root)
+        except VoiceCatalogError as error:
+            voices = []
+            catalog_error = error
+        profile_names = [voice["slug"] for voice in voices]
         if selected_voice not in profile_names:
             selected_voice = (
                 selected["result"]["slug"]
@@ -154,7 +155,9 @@ def create_ui_callbacks(
                 else profile_names[0] if profile_names else None
             )
         voices_status = (
-            "Vorhandene Stimmen: " + ", ".join(profile_names)
+            f"Stimmenprofil {html.escape(str(catalog_error))} ist ungueltig."
+            if catalog_error is not None
+            else "Vorhandene Stimmen: " + ", ".join(profile_names)
             if profile_names
             else "Noch keine Stimmenprofile."
         )

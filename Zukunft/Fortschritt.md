@@ -183,6 +183,9 @@
   optionaler Beispielaudio-URL; Transkript und Referenzaufnahme bleiben
   ausgeschlossen. Eine sichere WAV-Downloadroute und Fehlerantworten fuer
   ungueltige Profildaten sind ergaenzt.
+- UI und Stimmenlisten-API verwenden dieselbe Profilvalidierung. Unvollstaendige
+  oder fehlerhafte Profilordner werden nicht in der UI angeboten; ein sichtbarer
+  Statushinweis benennt das betroffene Profil.
 - Das manuelle Gradio-Stimmen-Slug-Feld durch eine Auswahl vorhandener Profile
   ersetzt. Die Auswahl wird beim Laden und mit der Statusaktualisierung
   synchronisiert, behaelt gueltige Auswahlen bei und waehlt eine neu erstellte
