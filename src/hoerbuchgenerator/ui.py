@@ -4,10 +4,8 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
-import wave
 
 import gradio as gr
-import numpy as np
 from fastapi import FastAPI, HTTPException
 
 from hoerbuchgenerator.synthesis import MAX_TEXT_BYTES
@@ -208,23 +206,6 @@ def create_ui_callbacks(
         elif selected["state"] == "completed":
             result = selected["result"]
             status = f"Stimme **{html.escape(result['name'])}** wurde erstellt."
-            example_path = root / "voices" / result["slug"] / "example.wav"
-            if example_path.is_file():
-                try:
-                    with wave.open(str(example_path), "rb") as example_file:
-                        example_audio = (
-                            example_file.getframerate(),
-                            np.frombuffer(
-                                example_file.readframes(example_file.getnframes()),
-                                dtype="<i2",
-                            ),
-                        )
-                except (OSError, wave.Error):
-                    logger.exception(
-                        "Beispielaudio fuer Stimme %s konnte nicht geladen werden",
-                        result["slug"],
-                    )
-                    status += "\n\nDas Beispielaudio konnte nicht geladen werden."
         elif selected["state"] == "failed":
             status = (
                 "Fehler bei der Stimmerstellung: "
@@ -236,6 +217,11 @@ def create_ui_callbacks(
             status = "Abbruch angefordert; der Worker wird beendet und neu geladen."
         else:
             status = "Stimme wird vorbereitet und synthetisiert ..."
+
+        if example_audio is None and selected_voice in profile_names:
+            example_path = root / "voices" / selected_voice / "example.wav"
+            if example_path.is_file() and not example_path.is_symlink():
+                example_audio = str(example_path)
 
         can_create = voice_service_available() and active is None
         return (
@@ -258,11 +244,27 @@ def create_ui_callbacks(
             return "Der Auftrag ist bereits beendet."
         return "Abbruch angefordert; der Worker wird beendet und neu geladen."
 
+    def load_voice_example_ui(selected_voice: str | None) -> str | None:
+        if not selected_voice:
+            return None
+        try:
+            voices = list_voice_profiles(root)
+        except VoiceCatalogError:
+            return None
+        voice = next(
+            (voice for voice in voices if voice["slug"] == selected_voice),
+            None,
+        )
+        if voice is None or voice["example_audio_url"] is None:
+            return None
+        return str(root / "voices" / selected_voice / "example.wav")
+
     return (
         submit_voice_ui,
         submit_synthesis_ui,
         refresh_voice_ui,
         cancel_voice_ui,
+        load_voice_example_ui,
     )
 
 
@@ -271,6 +273,7 @@ def create_ui(
     submit_synthesis: Callable[..., Any],
     refresh_voice: Callable[..., Any],
     cancel_voice: Callable[..., Any],
+    load_voice_example: Callable[..., Any],
 ) -> gr.Blocks:
     with gr.Blocks(title="Hoerbuchgenerator", analytics_enabled=False) as ui:
         gr.Markdown("# Hoerbuchgenerator")
@@ -371,6 +374,11 @@ def create_ui(
                 synthesis_format,
             ],
             outputs=[job_id, status, create_button, notice],
+        )
+        synthesis_voice.change(
+            load_voice_example,
+            inputs=[synthesis_voice],
+            outputs=[example],
         )
     ui.queue(api_open=False)
     ui.run_history = False

@@ -636,6 +636,7 @@ def create_app(
         submit_synthesis_ui,
         refresh_voice_ui,
         cancel_voice_ui,
+        load_voice_example_ui,
     ) = create_ui_callbacks(
         app,
         root,
@@ -657,6 +658,7 @@ def create_app(
         submit_synthesis_ui,
         refresh_voice_ui,
         cancel_voice_ui,
+        load_voice_example_ui,
     )
     return gr.mount_gradio_app(
         app,

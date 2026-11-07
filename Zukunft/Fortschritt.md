@@ -188,6 +188,8 @@
   Statushinweis benennt das betroffene Profil.
 - Die Stimmenauswahl zeigt Profilnamen und Sprachcodes an, uebermittelt intern
   weiterhin den jeweiligen Stimmen-Slug.
+- Das Beispielaudio des aktuell ausgewaehlten Profils wird in der UI als
+  Vorschau geladen; Synthese-Ergebnisse behalten bei Abschluss Vorrang.
 - Das manuelle Gradio-Stimmen-Slug-Feld durch eine Auswahl vorhandener Profile
   ersetzt. Die Auswahl wird beim Laden und mit der Statusaktualisierung
   synchronisiert, behaelt gueltige Auswahlen bei und waehlt eine neu erstellte

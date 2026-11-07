@@ -37,6 +37,10 @@ def test_gradio_ui_is_mounted_separately_and_hidden_from_api_schema():
         function.fn.__name__ == "submit_synthesis_ui"
         for function in blocks.fns.values()
     )
+    assert any(
+        function.fn.__name__ == "load_voice_example_ui"
+        for function in blocks.fns.values()
+    )
     assert "/api/v1/status" in app.openapi()["paths"]
     assert "/api/v1/voices" in app.openapi()["paths"]
     assert "/api/v1/voices/{slug}/example" in app.openapi()["paths"]

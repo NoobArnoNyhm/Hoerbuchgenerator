@@ -216,8 +216,7 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
     assert submitted[2] is False
     assert refreshed[0] == submitted[0]
     assert "Stimme **Teststimme** wurde erstellt." in refreshed[1]
-    assert refreshed[2][0] == 24000
-    assert len(refreshed[2][1]) == 10
+    assert refreshed[2] == str(tmp_path / "voices" / "test-voice" / "example.wav")
     assert refreshed[3]["interactive"] is True
     assert refreshed[4]["interactive"] is False
     assert refreshed[5]["choices"] == [("Teststimme (de)", "test-voice")]
@@ -237,6 +236,16 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
         ("Teststimme (de)", "test-voice"),
     ]
     assert refreshed_again[5]["value"] == "test-voice"
+
+    load_example = next(
+        function.fn
+        for function in ui.fns.values()
+        if function.fn.__name__ == "load_voice_example_ui"
+    )
+    assert load_example("another-voice") == str(
+        tmp_path / "voices" / "another-voice" / "example.wav"
+    )
+    assert load_example(None) is None
 
 
 def test_gradio_synthesis_requires_selected_voice(tmp_path):
