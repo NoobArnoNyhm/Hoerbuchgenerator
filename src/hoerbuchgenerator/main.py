@@ -15,7 +15,11 @@ from hoerbuchgenerator.audio import MAX_UPLOAD_BYTES
 from hoerbuchgenerator.api import register_api_routes
 from hoerbuchgenerator.jobs import JobManager, JobSlotBusy
 from hoerbuchgenerator.naming import make_slug
-from hoerbuchgenerator.qwen import QWEN_BASE_MODELS, QwenTTSAdapter
+from hoerbuchgenerator.qwen import (
+    QWEN_BASE_MODELS,
+    QWEN_REQUIRED_FILES,
+    QwenTTSAdapter,
+)
 from hoerbuchgenerator.synthesis import (
     MAX_TEXT_BYTES,
     SynthesisError,
@@ -27,7 +31,7 @@ from hoerbuchgenerator.voice_profiles import (
     VoiceProfileError,
     VoiceProfileService,
 )
-from hoerbuchgenerator.whisper import WHISPER_MODELS
+from hoerbuchgenerator.whisper import WHISPER_MODELS, WHISPER_REQUIRED_FILES
 from hoerbuchgenerator.worker import (
     VoiceWorker,
     VoiceWorkerCancelled,
@@ -119,9 +123,19 @@ def create_app(
                     raise RuntimeError(
                         f"Nicht unterstuetztes Whisper-Modell: {whisper_name}"
                     )
-                qwen_config = root / "models" / "huggingface" / qwen_name / "config.json"
-                whisper_config = root / "models" / "whisper" / whisper_name / "config.json"
-                if qwen_config.is_file() and whisper_config.is_file():
+                qwen_path = root / "models" / "huggingface" / qwen_name
+                whisper_path = root / "models" / "whisper" / whisper_name
+                missing_qwen = [
+                    name
+                    for name in QWEN_REQUIRED_FILES
+                    if not (qwen_path / name).is_file()
+                ]
+                missing_whisper = [
+                    name
+                    for name in WHISPER_REQUIRED_FILES
+                    if not (whisper_path / name).is_file()
+                ]
+                if not missing_qwen and not missing_whisper:
                     application.state.voice_worker = VoiceWorker(
                         {
                             "qwen_model": qwen_name,
@@ -146,9 +160,11 @@ def create_app(
                     logger.warning(
                         "Lokale Modell-Caches fehlen oder sind unvollstaendig; "
                         "Modellinitialisierung uebersprungen "
-                        "(Qwen-Konfiguration: %s, Whisper-Konfiguration: %s)",
-                        qwen_config,
-                        whisper_config,
+                        "(Qwen %s fehlend in %s; Whisper %s fehlend in %s)",
+                        missing_qwen or "vollstaendig",
+                        qwen_path,
+                        missing_whisper or "vollstaendig",
+                        whisper_path,
                     )
             try:
                 yield

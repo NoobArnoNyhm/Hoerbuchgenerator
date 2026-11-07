@@ -5,7 +5,12 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from hoerbuchgenerator.qwen import QWEN_BASE_MODELS, QwenError, QwenTTSAdapter
+from hoerbuchgenerator.qwen import (
+    QWEN_BASE_MODELS,
+    QWEN_REQUIRED_FILES,
+    QwenError,
+    QwenTTSAdapter,
+)
 from hoerbuchgenerator.voice_prompt import VoicePrompt
 
 
@@ -39,10 +44,22 @@ def test_local_loader_allows_only_base_models_and_requires_local_config(tmp_path
         QwenTTSAdapter.load_local(QWEN_BASE_MODELS[0], tmp_path)
 
 
+def test_local_loader_rejects_missing_weights(tmp_path):
+    model_path = tmp_path / QWEN_BASE_MODELS[0]
+    model_path.mkdir()
+    for filename in QWEN_REQUIRED_FILES:
+        if filename != "model.safetensors":
+            (model_path / filename).touch()
+
+    with pytest.raises(QwenError, match="model.safetensors"):
+        QwenTTSAdapter.load_local(QWEN_BASE_MODELS[0], tmp_path)
+
+
 def test_loader_passes_local_only_flag_to_model_loader(tmp_path, monkeypatch):
     model_path = tmp_path / QWEN_BASE_MODELS[0]
     model_path.mkdir()
-    (model_path / "config.json").touch()
+    for filename in QWEN_REQUIRED_FILES:
+        (model_path / filename).touch()
     calls = []
     monkeypatch.setenv("HF_HUB_OFFLINE", "0")
     monkeypatch.setenv("TRANSFORMERS_OFFLINE", "0")

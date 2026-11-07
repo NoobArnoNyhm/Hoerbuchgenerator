@@ -10,6 +10,15 @@ QWEN_BASE_MODELS = (
     "Qwen3-TTS-12Hz-0.6B-Base",
     "Qwen3-TTS-12Hz-1.7B-Base",
 )
+QWEN_REQUIRED_FILES = (
+    "config.json",
+    "generation_config.json",
+    "model.safetensors",
+    "preprocessor_config.json",
+    "tokenizer_config.json",
+    "vocab.json",
+    "merges.txt",
+)
 
 
 class QwenError(RuntimeError):
@@ -67,8 +76,14 @@ class QwenTTSAdapter:
         if model_name not in QWEN_BASE_MODELS:
             raise QwenError(f"Nicht unterstuetztes Qwen-Base-Modell: {model_name}")
         model_path = Path(models_dir) / model_name
-        if not (model_path / "config.json").is_file():
-            raise QwenError(f"Lokales Qwen-Modell '{model_name}' fehlt oder ist unvollstaendig: {model_path}")
+        missing = [
+            name for name in QWEN_REQUIRED_FILES if not (model_path / name).is_file()
+        ]
+        if missing:
+            raise QwenError(
+                f"Lokales Qwen-Modell '{model_name}' fehlt oder ist unvollstaendig: "
+                f"{', '.join(missing)} in {model_path}"
+            )
 
         if loader is None:
             try:

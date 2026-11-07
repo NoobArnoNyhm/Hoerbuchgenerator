@@ -13,6 +13,7 @@ from hoerbuchgenerator.audio import (
 
 
 WHISPER_MODELS = ("tiny", "base", "small", "medium", "large-v3")
+WHISPER_REQUIRED_FILES = ("config.json", "model.bin", "tokenizer.json")
 
 
 class WhisperError(RuntimeError):
@@ -58,8 +59,9 @@ class FasterWhisperAdapter:
             raise WhisperError(f"Nicht unterstuetztes Whisper-Modell: {model_name}")
 
         model_path = Path(models_dir) / model_name
-        required_files = ("config.json", "model.bin", "tokenizer.json")
-        missing = [name for name in required_files if not (model_path / name).is_file()]
+        missing = [
+            name for name in WHISPER_REQUIRED_FILES if not (model_path / name).is_file()
+        ]
         if missing:
             raise WhisperError(
                 f"Whisper-Modell '{model_name}' fehlt oder ist unvollstaendig: "

@@ -154,6 +154,11 @@
   `DO_NOT_TRACK`; vorherige Prozessumgebungswerte werden nach Shutdown
   wiederhergestellt. Gradio-Analytics bleiben in der UI deaktiviert. Ein
   Netzwerktest auf einem isolierten Runtime-Container steht weiterhin aus.
+- Die lokale Cache-Erkennung an die Qwen-/Whisper-Adapter angeglichen:
+  notwendige Gewichts- und Tokenizerdateien werden vor Workerstart geprueft.
+  Unvollstaendige Verzeichnisse lassen den API-Dienst mit `not_initialized`
+  starten und nennen die fehlenden Dateien im Log; Worker- und Adaptertests
+  pruefen die Pflichtdateien.
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
 - Reale Nutzerreferenzen, UI-Fluss im Browser und Hoerbuchqualitaet sind noch

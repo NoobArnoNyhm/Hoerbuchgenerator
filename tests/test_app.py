@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from hoerbuchgenerator.main import create_app
+from hoerbuchgenerator.qwen import QWEN_REQUIRED_FILES
 
 
 def test_status_is_versioned_and_does_not_claim_models_are_loaded(tmp_path):
@@ -52,6 +53,29 @@ def test_startup_creates_persistent_data_directories(tmp_path):
     assert (tmp_path / "output").is_dir()
     assert (tmp_path / "work").is_dir()
     assert (tmp_path / "config").is_dir()
+
+
+def test_startup_skips_incomplete_local_model_caches(tmp_path, caplog):
+    qwen_path = (
+        tmp_path
+        / "models"
+        / "huggingface"
+        / "Qwen3-TTS-12Hz-0.6B-Base"
+    )
+    whisper_path = tmp_path / "models" / "whisper" / "base"
+    qwen_path.mkdir(parents=True)
+    whisper_path.mkdir(parents=True)
+    for filename in QWEN_REQUIRED_FILES:
+        (qwen_path / filename).touch()
+    (whisper_path / "config.json").touch()
+    (whisper_path / "tokenizer.json").touch()
+
+    with TestClient(create_app(tmp_path)) as client:
+        response = client.get("/api/v1/status")
+
+    assert response.json()["state"] == "not_initialized"
+    assert response.json()["models"] == {"qwen": None, "whisper": None}
+    assert "model.bin" in caplog.text
 
 
 def test_runtime_enforces_offline_model_loading_and_restores_environment(
