@@ -1,0 +1,1 @@
+"""Hoerbuchgenerator application package."""

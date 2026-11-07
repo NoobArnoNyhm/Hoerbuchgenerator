@@ -1,0 +1,18 @@
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    working_dir: /workspace
+    volumes:
+      - type: bind
+        source: .
+        target: /workspace
+    environment:
+      APP_DATA_DIR: /tmp/hoerbuchgenerator-test-data
+      GRADIO_ANALYTICS_ENABLED: "False"
+      GRADIO_MCP_SERVER: "False"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      DO_NOT_TRACK: "1"
+    network_mode: none
+    command: ["python", "-m", "pytest", "-q"]
