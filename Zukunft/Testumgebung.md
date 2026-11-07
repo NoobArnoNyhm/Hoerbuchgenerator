@@ -87,6 +87,18 @@ unter dem erwarteten Slug abgelegtes Stimmenprofil. Gesamtlauf inklusive
 Modellstart: 170,3 Sekunden. Abbruch waehrend einer laufenden Modellinferenz
 bleibt kooperativ und beendet den Inferenzaufruf nicht vorzeitig.
 
+Modellvergleich am 2026-11-07 mit denselben Offline-Bedingungen und
+synthetischer englischer Sprache: faster-whisper `medium` lud in 12,2 s und
+transkribierte in 14,6 s (Sprache `en`, Wahrscheinlichkeit 0,996, 74 Woerter);
+`small` lud in 3,8 s und transkribierte in 5,4 s (Sprache `en`,
+Wahrscheinlichkeit 0,981, 74 Woerter). Qwen 1.7B Base lud mit BF16/SDPA auf
+der RTX 3080 Laptop GPU in 232,8 s; CUDA-Spitzenwerte lagen bei 3,91 GiB
+alloziert und 4,04 GiB reserviert. Ein vollstaendiger Stimmenprofilablauf
+einschliesslich Qwen-Beispielaudio mit Whisper small und Qwen 1.7B war
+erfolgreich (GPU-Container Exit-Code 0). Damit ist die technische
+Modellkompatibilitaet geprueft, nicht die Sprachqualitaet mit menschlichen
+Referenzaufnahmen.
+
 ## Aufbau
 
 - `Dockerfile.test`: Python-/FFmpeg-Image und Installation des Projekts samt

@@ -107,17 +107,25 @@
   Beispielaudio-Ausgabe sowie Ablehnung bei belegtem Jobslot. Die vollstaendige
   Docker-Testsuite besteht mit **55 Tests**; eine nicht blockierende
   Starlette-Deprecation-Warnung bleibt.
+- Modellvergleich auf der RTX 3080 Laptop GPU mit synthetischer englischer
+  Sprache und lokalem Offline-Cache: faster-whisper `medium` erkannte Sprache
+  `en` (0,996; 74 Woerter; Laden 12,2 s, Transkription 14,6 s), `small`
+  erkannte ebenfalls `en` (0,981; 74 Woerter; Laden 3,8 s, Transkription
+  5,4 s). Qwen 1.7B Base lud mit BF16/SDPA auf CUDA in 232,8 s; Spitzenwerte
+  lagen bei 3,91 GiB alloziertem und 4,04 GiB reserviertem CUDA-Speicher.
+  Der vollstaendige Stimmenprofilablauf mit Whisper small und Qwen 1.7B
+  einschliesslich Beispielaudio war erfolgreich. Der gezielte GPU-Container
+  endete mit Exit-Code 0.
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
-- Die UI-Stimmenanlage ist implementiert. Hoerbuchsynthese, Qwen 1.7B,
-  weitere Whisper-Groessen, reale Nutzerreferenzen und UI-Fluss im Browser,
+- Die UI-Stimmenanlage ist implementiert. Hoerbuchsynthese, reale
+  Nutzerreferenzen und UI-Fluss im Browser,
   Prozessabbruch waehrend Inferenz und Modellneustart sind nicht geprueft.
   Der API-Abbruch wird erst zwischen den Inferenzphasen ausgewertet. Ein
   automatisierter Modell-Downloadschritt fehlt.
 
 ### Naechste Schritte
 
-1. Qwen 1.7B und weitere Whisper-Groessen auf Zielhardware pruefen; reale
-  Referenzaufnahmen sowie Worker-Abbruch und Modellneustart untersuchen.
+1. Reale Referenzaufnahmen sowie Worker-Abbruch und Modellneustart untersuchen.
 2. Implementieren: Konfiguration, separaten Worker-Prozess mit echtem
   Inferenzabbruch und kontrolliertem Modellneustart.
