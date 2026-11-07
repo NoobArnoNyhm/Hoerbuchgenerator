@@ -191,7 +191,8 @@
 - Das Beispielaudio des aktuell ausgewaehlten Profils wird in der UI als
   Vorschau geladen; Synthese-Ergebnisse behalten bei Abschluss Vorrang.
   Fehlende Beispielaudios und nicht mehr verfuegbare Profile leeren die
-  vorherige Vorschau.
+  vorherige Vorschau. Ein UI-Konfigurationstest prueft die Verbindung des
+  Dropdown-Ereignisses mit der Audiokomponente.
 - Das manuelle Gradio-Stimmen-Slug-Feld durch eine Auswahl vorhandener Profile
   ersetzt. Die Auswahl wird beim Laden und mit der Statusaktualisierung
   synchronisiert, behaelt gueltige Auswahlen bei und waehlt eine neu erstellte

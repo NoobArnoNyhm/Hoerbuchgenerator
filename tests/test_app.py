@@ -41,6 +41,17 @@ def test_gradio_ui_is_mounted_separately_and_hidden_from_api_schema():
         function.fn.__name__ == "load_voice_example_ui"
         for function in blocks.fns.values()
     )
+    component_ids = {
+        component.get("props", {}).get("label"): component["id"]
+        for component in blocks.config["components"]
+    }
+    preview_binding = next(
+        dependency
+        for dependency in blocks.config["dependencies"]
+        if (component_ids["Stimme"], "change") in dependency["targets"]
+    )
+    assert preview_binding["inputs"] == [component_ids["Stimme"]]
+    assert preview_binding["outputs"] == [component_ids["Sprachbeispiel"]]
     assert "/api/v1/status" in app.openapi()["paths"]
     assert "/api/v1/voices" in app.openapi()["paths"]
     assert "/api/v1/voices/{slug}/example" in app.openapi()["paths"]
