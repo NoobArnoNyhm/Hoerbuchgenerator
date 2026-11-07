@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from hoerbuchgenerator.main import create_app
 from hoerbuchgenerator.qwen import QWEN_REQUIRED_FILES
+from hoerbuchgenerator.whisper import WHISPER_REQUIRED_FILES
 
 
 def test_status_is_versioned_and_does_not_claim_models_are_loaded(tmp_path):
@@ -76,6 +77,77 @@ def test_startup_skips_incomplete_local_model_caches(tmp_path, caplog):
     assert response.json()["state"] == "not_initialized"
     assert response.json()["models"] == {"qwen": None, "whisper": None}
     assert "model.bin" in caplog.text
+
+
+def test_startup_loads_worker_from_complete_local_model_caches(
+    tmp_path,
+    monkeypatch,
+):
+    qwen_name = "Qwen3-TTS-12Hz-1.7B-Base"
+    whisper_name = "medium"
+    qwen_path = tmp_path / "models" / "huggingface" / qwen_name
+    whisper_path = tmp_path / "models" / "whisper" / whisper_name
+    qwen_path.mkdir(parents=True)
+    whisper_path.mkdir(parents=True)
+    for filename in QWEN_REQUIRED_FILES:
+        (qwen_path / filename).touch()
+    for filename in WHISPER_REQUIRED_FILES:
+        (whisper_path / filename).touch()
+    monkeypatch.setenv("QWEN_MODEL", qwen_name)
+    monkeypatch.setenv("WHISPER_MODEL", whisper_name)
+
+    workers = []
+
+    class FakeWorker:
+        def __init__(self, settings):
+            self.settings = settings
+            self.ready = False
+            self.closed = False
+            self.runtime_environment = {}
+            workers.append(self)
+
+        async def start(self):
+            self.runtime_environment = {
+                name: os.environ[name]
+                for name in (
+                    "HF_HUB_OFFLINE",
+                    "TRANSFORMERS_OFFLINE",
+                    "HF_HUB_DISABLE_TELEMETRY",
+                    "DO_NOT_TRACK",
+                )
+            }
+            self.ready = True
+
+        async def close(self):
+            self.closed = True
+            self.ready = False
+
+    monkeypatch.setattr("hoerbuchgenerator.main.VoiceWorker", FakeWorker)
+
+    with TestClient(create_app(tmp_path)) as client:
+        response = client.get("/api/v1/status")
+        assert response.json()["state"] == "ready"
+        assert response.json()["models"] == {
+            "qwen": qwen_name,
+            "whisper": whisper_name,
+        }
+
+    assert len(workers) == 1
+    assert workers[0].settings["qwen_model"] == qwen_name
+    assert workers[0].settings["whisper_model"] == whisper_name
+    assert workers[0].settings["qwen_models_dir"] == str(
+        tmp_path / "models" / "huggingface"
+    )
+    assert workers[0].settings["whisper_models_dir"] == str(
+        tmp_path / "models" / "whisper"
+    )
+    assert workers[0].runtime_environment == {
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1",
+        "HF_HUB_DISABLE_TELEMETRY": "1",
+        "DO_NOT_TRACK": "1",
+    }
+    assert workers[0].closed
 
 
 def test_runtime_enforces_offline_model_loading_and_restores_environment(

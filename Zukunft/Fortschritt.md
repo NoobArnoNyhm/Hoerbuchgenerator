@@ -159,6 +159,10 @@
   Unvollstaendige Verzeichnisse lassen den API-Dienst mit `not_initialized`
   starten und nennen die fehlenden Dateien im Log; Worker- und Adaptertests
   pruefen die Pflichtdateien.
+- Der positive Offline-Initialisierungspfad ist mit vollstaendigen Fake-Caches
+  getestet: konfigurierte Qwen-/Whisper-Modelle erreichen den Status `ready`,
+  der Worker erhaelt die erwarteten Cachepfade und wird beim Shutdown
+  geschlossen. Ein echter GPU-/Netzwerk-Abnahmelauf ist davon nicht abgedeckt.
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
 - Reale Nutzerreferenzen, UI-Fluss im Browser und Hoerbuchqualitaet sind noch
