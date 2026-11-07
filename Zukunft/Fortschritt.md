@@ -144,6 +144,11 @@
   Gradio-Layout und Callbacks in `ui.py`; `hoerbuchgenerator.main:app` bleibt
   als ASGI-Einstieg kompatibel. Die gezielten App-, Stimmen-API- und
   Synthese-API-Regressionstests bestanden (**11 Tests**).
+- Modellkonfiguration beim Start gehaertet: Unbekannte Qwen-/Whisper-Auswahlen
+  werden auch ohne vorhandene lokale Caches sofort abgewiesen. Fehlende Caches
+  verhindern weiterhin den Start nicht, werden aber mit ihren erwarteten
+  Pfaden protokolliert; der API-Status bleibt `not_initialized`. Die gezielten
+  App- und API-Regressionstests bestanden mit **13 Tests**.
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
 - Reale Nutzerreferenzen, UI-Fluss im Browser und Hoerbuchqualitaet sind noch
@@ -152,4 +157,4 @@
 ### Naechste Schritte
 
 1. Hoerbuchqualitaet mit laengeren Texten und realen Referenzaufnahmen pruefen.
-2. Konfiguration, Offline-Betrieb und Modellinitialisierung weiter haerten.
+2. Offline-Betrieb und Modellinitialisierung weiter haerten.

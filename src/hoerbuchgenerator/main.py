@@ -86,13 +86,17 @@ def create_app(
         if application.state.voice_worker is None and not application.state.voice_available:
             qwen_name = os.environ.get("QWEN_MODEL", QWEN_BASE_MODELS[0])
             whisper_name = os.environ.get("WHISPER_MODEL", "base")
+            if qwen_name not in QWEN_BASE_MODELS:
+                raise RuntimeError(
+                    f"Nicht unterstuetztes Qwen-Base-Modell: {qwen_name}"
+                )
+            if whisper_name not in WHISPER_MODELS:
+                raise RuntimeError(
+                    f"Nicht unterstuetztes Whisper-Modell: {whisper_name}"
+                )
             qwen_config = root / "models" / "huggingface" / qwen_name / "config.json"
             whisper_config = root / "models" / "whisper" / whisper_name / "config.json"
             if qwen_config.is_file() and whisper_config.is_file():
-                if qwen_name not in QWEN_BASE_MODELS:
-                    raise RuntimeError(f"Nicht unterstuetztes Qwen-Base-Modell: {qwen_name}")
-                if whisper_name not in WHISPER_MODELS:
-                    raise RuntimeError(f"Nicht unterstuetztes Whisper-Modell: {whisper_name}")
                 application.state.voice_worker = VoiceWorker(
                     {
                         "qwen_model": qwen_name,
@@ -113,6 +117,14 @@ def create_app(
                     "qwen": qwen_name,
                     "whisper": whisper_name,
                 }
+            else:
+                logger.warning(
+                    "Lokale Modell-Caches fehlen oder sind unvollstaendig; "
+                    "Modellinitialisierung uebersprungen "
+                    "(Qwen-Konfiguration: %s, Whisper-Konfiguration: %s)",
+                    qwen_config,
+                    whisper_config,
+                )
         try:
             yield
         finally:

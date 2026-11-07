@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from hoerbuchgenerator.main import create_app
@@ -49,3 +50,32 @@ def test_startup_creates_persistent_data_directories(tmp_path):
     assert (tmp_path / "output").is_dir()
     assert (tmp_path / "work").is_dir()
     assert (tmp_path / "config").is_dir()
+
+
+@pytest.mark.parametrize(
+    ("variable", "value", "message"),
+    [
+        (
+            "QWEN_MODEL",
+            "Qwen3-TTS-12Hz-0.6B-VoiceDesign",
+            "Nicht unterstuetztes Qwen",
+        ),
+        (
+            "WHISPER_MODEL",
+            "large-v3-turbo",
+            "Nicht unterstuetztes Whisper",
+        ),
+    ],
+)
+def test_startup_rejects_unsupported_model_selection(
+    tmp_path,
+    monkeypatch,
+    variable,
+    value,
+    message,
+):
+    monkeypatch.setenv(variable, value)
+
+    with pytest.raises(RuntimeError, match=message):
+        with TestClient(create_app(tmp_path)):
+            pass

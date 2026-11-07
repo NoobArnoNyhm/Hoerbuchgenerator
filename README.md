@@ -30,6 +30,10 @@ ueberschreiben. Liegen beide lokalen Modelle in `data/models/`, werden Qwen
 kann ueber `QWEN_MODEL` und `WHISPER_MODEL`, das Whisper-Geraet ueber
 `WHISPER_DEVICE` und `WHISPER_COMPUTE_TYPE` konfiguriert werden. Qwen verwendet
 standardmaessig CUDA, BF16 und SDPA; `QWEN_DEVICE_MAP` kann das Geraet anpassen.
+Nicht unterstuetzte Modellnamen brechen den Start mit einer konkreten Meldung
+ab. Fehlen lokale Modell-Caches, startet die Anwendung ohne Modellservice,
+protokolliert die erwarteten Cachepfade und meldet den Status als
+`not_initialized`; es werden keine Modelle heruntergeladen.
 
 In der UI koennen Sie einen Stimmenname und eine WAV-/MP3-Referenzaufnahme
 angeben. Der Auftrag wird angenommen, der gemeinsame Status alle zwei Sekunden
