@@ -1,5 +1,5 @@
 services:
-  app:
+  hoerbuchgenerator:
     image: hoerbuchgenerator:local
     build:
       context: .

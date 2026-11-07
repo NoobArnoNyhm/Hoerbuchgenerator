@@ -207,7 +207,7 @@
   netzwerkfaehigen Modell-Initializer, bindet `data/` persistent ein,
   veroeffentlicht nur den Loopback-Port und prueft Modellbereitschaft.
 - Ein Initialisierungsskript je Shell (PowerShell/Bash) baut das Image,
-  initialisiert Modelle und startet den App-Container mit Compose. Status,
+  initialisiert Modelle und startet den Compose-Service `hoerbuchgenerator`. Status,
   Logs und Stop bleiben direkte Compose-Befehle. Compose-Konfiguration,
   Image-Build, PyTorch-CUDA-Paketimport, App-Startup ohne Modelle, Initializer
   mit vorhandenen Caches, Skriptsyntax und 30 gezielte API-/UI-Tests bestanden.

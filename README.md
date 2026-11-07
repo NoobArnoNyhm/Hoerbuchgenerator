@@ -33,7 +33,7 @@ Skripte:
 
 ```powershell
 docker compose ps
-docker compose logs app
+docker compose logs hoerbuchgenerator
 docker compose down
 ```
 

@@ -4,7 +4,7 @@ Push-Location $PSScriptRoot
 try {
     New-Item -ItemType Directory -Force -Path (Join-Path $PSScriptRoot "data") | Out-Null
 
-    docker compose build app
+    docker compose build hoerbuchgenerator
     if ($LASTEXITCODE -ne 0) {
         throw "Das Runtime-Image konnte nicht gebaut werden."
     }
@@ -14,7 +14,7 @@ try {
         throw "Die Modellinitialisierung ist fehlgeschlagen."
     }
 
-    docker compose up -d app
+    docker compose up -d hoerbuchgenerator
     if ($LASTEXITCODE -ne 0) {
         throw "Der App-Container konnte nicht gestartet werden."
     }
