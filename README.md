@@ -46,8 +46,10 @@ python -m pytest
 
 Die Qwen-/Whisper-Adapter wurden mit lokalen Qwen-0.6B-Base- und
 faster-whisper-base-Gewichten in einem separaten GPU-Smoke-Test mit
-Offline-Ladeflags geprueft. Sie sind noch nicht in die UI-/API-Ablaufe
-integriert; die Modellgewichte sind nicht versioniert und eine automatisierte
+Offline-Ladeflags geprueft. Die Upload-Vorbereitung fuer Stimmen validiert und
+normalisiert Audio und ermittelt mit Whisper Referenzausschnitt, Transkript
+und Sprache. Sie ist noch nicht mit Qwen, API-Auftraegen oder UI verbunden;
+Modellgewichte sind nicht versioniert und eine automatisierte
 Modellinitialisierung fehlt. Der Prototyp ist deshalb weder als fertige
 Anwendung noch fuer den Offline-Abnahmebetrieb geeignet. Den Umsetzungsstand
 und offene Pruefungen enthaelt [Zukunft/Fortschritt.md](Zukunft/Fortschritt.md).

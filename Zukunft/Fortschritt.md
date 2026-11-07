@@ -64,6 +64,19 @@
 - faster-whisper 1.2.1 ist mit PyAV 19 nicht kompatibel
   (`av.open(..., metadata_errors=...)`); die Whisper-Extra-Abhaengigkeit
   begrenzt PyAV deshalb auf Versionen unter 19.
+- Upload-Vorbereitung fuer Stimmen implementiert: Datei-Endung, Name und
+  Groesse werden geprueft; der Upload wird begrenzt ins Arbeitsverzeichnis
+  geschrieben, normalisiert und mit Whisper transkribiert. Referenzausschnitt,
+  Transkript, erkannte Sprache und Sprachwahrscheinlichkeit bleiben fuer den
+  nachfolgenden Qwen-Schritt im Arbeitsverzeichnis erhalten. Fehler entfernen
+  angelegte Arbeitsdateien.
+- Mit echten Whisper-Base-Gewichten auf synthetischer Sprache geprueft:
+  kurze Aufnahme (11,72 s) und moderat verrauschte Aufnahme (11,70 s) ergaben
+  Transkript und Sprache `en` (Wahrscheinlichkeit 0,953 bzw. 0,958).
+  Stille wurde mit leerem Transkript abgewiesen und das Arbeitsverzeichnis
+  bereinigt.
+- Vollstaendige Docker-Testsuite nach der Upload-Ergaenzung: **46 bestanden**;
+  die nicht blockierende Starlette-Deprecation-Warnung bleibt.
 - Gradio-Mount wird im Integrationstest geprueft; UI im Browser und
   Audio-Upload/-Wiedergabe mit echten Modellablaeufen sind noch nicht geprueft.
 - Die vollstaendige Anwendung nutzt die getesteten Modelle noch nicht.
@@ -73,8 +86,8 @@
 
 ### Naechste Schritte
 
-1. Whisper-Adapter an Upload-/Stimmenablauf anbinden; Sprache,
-  Segmentfehler sowie kurze/noisy Referenzen pruefen.
+1. Whisper-Vorbereitung mit asynchronem Stimmenauftrag, Qwen-Prompt,
+  Beispielaudio und atomarer Profilablage verbinden.
 2. Qwen 1.7B und weitere Whisper-Groessen auf Zielhardware pruefen; reale
   Referenzaufnahmen sowie Worker-Abbruch und Modellneustart untersuchen.
 3. Implementieren: Konfiguration, Worker-Prozess, Stimmenpersistenz und echte

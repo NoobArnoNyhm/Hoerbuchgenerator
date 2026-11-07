@@ -44,7 +44,7 @@ docker compose -f compose.test.yaml run --rm --entrypoint bash test
 ## Verifizierter Lauf
 
 Am 2026-11-07 wurde das Image gebaut und die komplette Testsuite im Container
-ausgefuehrt: **41 bestanden**. Der FFmpeg-/FFprobe-Integrationstest lief dabei
+ausgefuehrt: **46 bestanden**. Der FFmpeg-/FFprobe-Integrationstest lief dabei
 mit. Es gab eine nicht blockierende Starlette-Deprecation-Warnung.
 
 ## Modell-Smoke-Test auf GPU
@@ -64,6 +64,13 @@ integrierten UI-/API- oder Worker-Ablauf.
 
 faster-whisper 1.2.1 funktioniert nicht mit PyAV 19; die optionale
 Whisper-Abhaengigkeit pinnt PyAV daher auf `<19`.
+
+Der Stimmen-Upload-Vorbereitungspfad wurde mit echten Whisper-Base-Gewichten
+und lokal erzeugter Sprache geprueft: Eine kurze Referenz von 11,72 Sekunden
+und eine mit leisem rosa Rauschen ueberlagerte Referenz von 11,70 Sekunden
+wurden jeweils mit Sprache `en` transkribiert. Eine stille Aufnahme wurde
+abgewiesen; temporaere Dateien wurden bereinigt. Es wurden keine menschlichen
+Sprachaufnahmen verwendet.
 
 ## Aufbau
 
