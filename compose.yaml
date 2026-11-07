@@ -1,0 +1,66 @@
+services:
+  app:
+    image: hoerbuchgenerator:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    environment:
+      APP_DATA_DIR: /data
+      QWEN_MODEL: ${QWEN_MODEL:-Qwen3-TTS-12Hz-0.6B-Base}
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
+      WHISPER_DEVICE: ${WHISPER_DEVICE:-cuda}
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-float16}
+      QWEN_DEVICE_MAP: ${QWEN_DEVICE_MAP:-cuda:0}
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      DO_NOT_TRACK: "1"
+      GRADIO_ANALYTICS_ENABLED: "False"
+      GRADIO_MCP_SERVER: "False"
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    networks:
+      - runtime
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${GPU_DEVICE:-0}"]
+              capabilities: [gpu]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json,urllib.request; s=json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/v1/status',timeout=5)); assert s['state']=='ready' and s['models']['qwen'] and s['models']['whisper']"
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 10m
+    restart: unless-stopped
+
+  initialize:
+    image: hoerbuchgenerator:local
+    profiles: [initialize]
+    environment:
+      APP_DATA_DIR: /data
+      QWEN_MODEL: ${QWEN_MODEL:-Qwen3-TTS-12Hz-0.6B-Base}
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
+      HF_TOKEN: ${HF_TOKEN:-}
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      DO_NOT_TRACK: "1"
+    volumes:
+      - ./data:/data
+    command: ["python", "-m", "hoerbuchgenerator.initialize_models"]
+    networks:
+      - setup
+
+networks:
+  runtime:
+    internal: true
+  setup:
+    driver: bridge

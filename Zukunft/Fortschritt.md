@@ -202,6 +202,16 @@
   zurueck; beide Oberflaechen verwenden dieselbe zentrale Dateigrenze.
 - Die UI prueft Dateitypen und Gesamtgroesse aller Textdateien vor dem Einlesen
   und meldet nicht lesbare oder zwischenzeitlich entfernte Dateien verstaendlich.
+- Runtime-Dockerimage mit FFmpeg, Qwen-/Whisper-Abhaengigkeiten und PyTorch
+  2.6.0/CUDA 12.4 erstellt. Compose trennt den Offline-App-Dienst vom
+  netzwerkfaehigen Modell-Initializer, bindet `data/` persistent ein,
+  veroeffentlicht nur den Loopback-Port und prueft Modellbereitschaft.
+- PowerShell- und Bash-Skripte fuer Image-/Modellinitialisierung, Start mit
+  Readiness-Timeout, Status, Logs und Stop ergaenzt. Compose-Konfiguration,
+  Image-Build, PyTorch-CUDA-Paketimport, App-Startup ohne Modelle, Initializer
+  mit vorhandenen Caches, Skriptsyntax und 30 gezielte API-/UI-Tests bestanden.
+  Der GPU-Start ueber Compose und eine echte Modellinitialisierung wurden in
+  diesem Schritt nicht ausgefuehrt.
 - Das manuelle Gradio-Stimmen-Slug-Feld durch eine Auswahl vorhandener Profile
   ersetzt. Die Auswahl wird beim Laden und mit der Statusaktualisierung
   synchronisiert, behaelt gueltige Auswahlen bei und waehlt eine neu erstellte
@@ -215,5 +225,5 @@
 
 ### Naechste Schritte
 
-1. Hoerbuchqualitaet mit laengeren Texten und realen Referenzaufnahmen pruefen.
+1. GPU-Laufzeit mit echten Referenzaufnahmen und laengeren Texten pruefen.
 2. Offline-Betrieb und Modellinitialisierung weiter haerten.

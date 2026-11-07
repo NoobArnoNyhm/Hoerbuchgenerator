@@ -137,4 +137,6 @@ Die vollstaendige Suite wurde in diesem Schritt nicht erneut ausgefuehrt.
   Nutzdaten aus dem Build-Kontext aus.
 
 Dieses Image ist ausschliesslich fuer Tests gedacht. Es enthaelt keine Qwen-
-oder Whisper-Modelle und ersetzt nicht das spaetere Laufzeit-Image.
+oder Whisper-Modelle und wird nicht fuer den Anwendungsbetrieb verwendet.
+Die Runtime-Installation mit Modellinitialisierung ist unter
+[Docker-Laufzeit](../README.md#docker-laufzeit) dokumentiert.

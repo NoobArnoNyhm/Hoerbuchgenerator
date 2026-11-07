@@ -6,7 +6,35 @@ Anlegen von Stimmenprofilen mit Transkript, wiederverwendbarem Qwen-Prompt und
 Beispielaudio. Die Gradio-Oberflaeche und die versionierte API verwenden
 denselben Stimmenauftrag und Jobstatus. Qwen und Whisper laufen in einem
 separaten Worker-Prozess. Hoerbuchsynthese ist verfuegbar; automatischer
-Modelldownload ist noch nicht implementiert.
+Modelldownload erfolgt ueber den separaten Online-Initialisierungsschritt.
+
+## Docker-Laufzeit
+
+Fuer die GPU-Laufzeit werden Docker Compose v2 und eine von Docker erreichbare
+NVIDIA-GPU mit passendem NVIDIA Container Toolkit benoetigt. Die Modellgewichte
+werden separat initialisiert und nicht in das Image eingebaut.
+
+```powershell
+Copy-Item .env.example .env
+.\initialize.ps1
+.\start.ps1
+.\status.ps1
+.\logs.ps1
+.\stop.ps1
+```
+
+Unter Linux dieselben Schritte mit `cp .env.example .env` und
+`sh initialize.sh`, `sh start.sh`, `sh status.sh`, `sh logs.sh` sowie
+`sh stop.sh` ausfuehren. `initialize` baut das Runtime-Image und laedt die in
+`.env` ausgewaehlten Qwen- und Whisper-Modelle nach `data/models/`; dazu ist
+Netzwerkzugriff auf Hugging Face erforderlich. Falls Modellzugriff ein Token
+benoetigt, `HF_TOKEN` nur in der lokalen `.env` setzen. Der normale
+App-Container laeuft danach ohne externen Netzwerkzugriff. Er bindet nur
+`127.0.0.1:${APP_PORT}` und benoetigt bis zu zehn Minuten zum Laden der Modelle.
+Die Startskripte warten auf den Status `ready` und geben bei einem Timeout
+Containerlogs aus. Stimmen, Ausgaben, Modelle und Konfiguration bleiben unter
+`data/` erhalten; Backups dieses Verzeichnisses sind die Verantwortung des
+Betreibers.
 
 ## Voraussetzungen
 
