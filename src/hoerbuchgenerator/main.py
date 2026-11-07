@@ -4,6 +4,7 @@ import html
 import logging
 from pathlib import Path
 import os
+import shutil
 import tempfile
 import wave
 
@@ -17,12 +18,11 @@ from hoerbuchgenerator.jobs import JobManager, JobSlotBusy
 from hoerbuchgenerator.naming import make_slug
 from hoerbuchgenerator.qwen import QWEN_BASE_MODELS, QwenTTSAdapter
 from hoerbuchgenerator.voice_profiles import (
-    VoiceCreationCancelled,
     VoiceProfileError,
     VoiceProfileService,
 )
-from hoerbuchgenerator.voice_reference import VoiceReferenceService
-from hoerbuchgenerator.whisper import WHISPER_MODELS, FasterWhisperAdapter
+from hoerbuchgenerator.whisper import WHISPER_MODELS
+from hoerbuchgenerator.worker import VoiceWorker, VoiceWorkerCancelled, VoiceWorkerError
 
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ def create_app(
     async def lifespan(application: FastAPI):
         for directory in ("models/huggingface", "models/whisper", "voices", "output", "work", "config"):
             (root / directory).mkdir(parents=True, exist_ok=True)
-        if application.state.voice_profiles is None:
+        if application.state.voice_worker is None and not application.state.voice_available:
             qwen_name = os.environ.get("QWEN_MODEL", QWEN_BASE_MODELS[0])
             whisper_name = os.environ.get("WHISPER_MODEL", "base")
             qwen_config = root / "models" / "huggingface" / qwen_name / "config.json"
@@ -48,39 +48,36 @@ def create_app(
                     raise RuntimeError(f"Nicht unterstuetztes Qwen-Base-Modell: {qwen_name}")
                 if whisper_name not in WHISPER_MODELS:
                     raise RuntimeError(f"Nicht unterstuetztes Whisper-Modell: {whisper_name}")
-
-                def load_models() -> VoiceProfileService:
-                    import torch
-
-                    whisper = FasterWhisperAdapter.load_local(
-                        whisper_name,
-                        root / "models" / "whisper",
-                        device=os.environ.get("WHISPER_DEVICE", "cpu"),
-                        compute_type=os.environ.get("WHISPER_COMPUTE_TYPE", "int8"),
-                    )
-                    qwen = QwenTTSAdapter.load_local(
-                        qwen_name,
-                        root / "models" / "huggingface",
-                        loader_kwargs={
-                            "device_map": os.environ.get("QWEN_DEVICE_MAP", "cuda:0"),
-                            "dtype": torch.bfloat16,
-                            "attn_implementation": "sdpa",
-                        },
-                    )
-                    return VoiceProfileService(
-                        VoiceReferenceService(whisper),
-                        qwen,
-                        qwen_name,
-                    )
-
-                application.state.voice_profiles = await asyncio.to_thread(load_models)
+                application.state.voice_worker = VoiceWorker(
+                    {
+                        "qwen_model": qwen_name,
+                        "whisper_model": whisper_name,
+                        "qwen_models_dir": str(root / "models" / "huggingface"),
+                        "whisper_models_dir": str(root / "models" / "whisper"),
+                        "whisper_device": os.environ.get("WHISPER_DEVICE", "cpu"),
+                        "whisper_compute_type": os.environ.get(
+                            "WHISPER_COMPUTE_TYPE",
+                            "int8",
+                        ),
+                        "qwen_device_map": os.environ.get("QWEN_DEVICE_MAP", "cuda:0"),
+                    }
+                )
+                await application.state.voice_worker.start()
+                application.state.voice_available = True
                 application.state.model_names = {
                     "qwen": qwen_name,
                     "whisper": whisper_name,
                 }
-        yield
-        if application.state.background_tasks:
-            await asyncio.gather(*application.state.background_tasks)
+        try:
+            yield
+        finally:
+            active_job = await application.state.jobs.active()
+            if active_job is not None:
+                await application.state.jobs.request_cancel(active_job["id"])
+            if application.state.voice_worker is not None:
+                await application.state.voice_worker.close()
+            if application.state.background_tasks:
+                await asyncio.gather(*application.state.background_tasks)
 
     app = FastAPI(
         title="Hoerbuchgenerator API",
@@ -89,11 +86,17 @@ def create_app(
     )
     app.state.jobs = JobManager()
     app.state.voice_profiles = voice_profiles
+    app.state.voice_worker = None
+    app.state.voice_available = voice_profiles is not None
     app.state.background_tasks = set()
     app.state.model_names = {"qwen": None, "whisper": None}
 
+    def voice_service_available() -> bool:
+        worker = app.state.voice_worker
+        return app.state.voice_available and (worker is None or worker.ready)
+
     async def accept_voice_upload(name: str, filename: str, read_chunk) -> dict[str, str]:
-        if app.state.voice_profiles is None:
+        if not voice_service_available():
             raise HTTPException(
                 status_code=503,
                 detail={"code": "voice_service_not_initialized"},
@@ -121,7 +124,7 @@ def create_app(
                 detail={"code": "busy"},
             ) from error
 
-        work_root = root / "work"
+        work_root = root / "work" / job["id"]
         staged_upload: Path | None = None
         try:
             work_root.mkdir(parents=True, exist_ok=True)
@@ -154,6 +157,7 @@ def create_app(
             )
             if staged_upload is not None:
                 staged_upload.unlink(missing_ok=True)
+            shutil.rmtree(work_root, ignore_errors=True)
             raise
         except asyncio.CancelledError:
             await app.state.jobs.finish(
@@ -163,6 +167,7 @@ def create_app(
             )
             if staged_upload is not None:
                 staged_upload.unlink(missing_ok=True)
+            shutil.rmtree(work_root, ignore_errors=True)
             raise
         except OSError as error:
             await app.state.jobs.finish(
@@ -172,6 +177,7 @@ def create_app(
             )
             if staged_upload is not None:
                 staged_upload.unlink(missing_ok=True)
+            shutil.rmtree(work_root, ignore_errors=True)
             raise HTTPException(
                 status_code=500,
                 detail={"code": "upload_staging_failed"},
@@ -185,6 +191,7 @@ def create_app(
             )
             if staged_upload is not None:
                 staged_upload.unlink(missing_ok=True)
+            shutil.rmtree(work_root, ignore_errors=True)
             raise HTTPException(
                 status_code=500,
                 detail={"code": "upload_staging_failed"},
@@ -193,34 +200,63 @@ def create_app(
         async def run_voice_job() -> None:
             job_id = job["id"]
             cancel_event = app.state.jobs.cancel_event(job_id)
+            staging_before: set[Path] = set()
+            worker_job_started = False
+            profile_existed_before = False
             try:
                 if not await app.state.jobs.update(job_id, "creating_voice", total=1):
                     await app.state.jobs.finish(job_id, "cancelled")
                     return
 
-                def create_profile():
-                    with staged_upload.open("rb") as staged:
-                        return app.state.voice_profiles.create(
-                            staged,
-                            filename,
-                            name,
-                            root / "voices",
-                            work_root,
-                            cancel_event=cancel_event,
-                        )
+                if app.state.voice_worker is not None:
+                    voices_dir = root / "voices"
+                    slug = make_slug(name)
+                    profile_existed_before = (voices_dir / slug).exists()
+                    staging_before = set(voices_dir.glob(f".{slug}-*"))
+                    worker_job_started = True
+                    created = await app.state.voice_worker.create_voice(
+                        upload_path=staged_upload,
+                        filename=filename,
+                        name=name,
+                        voices_dir=voices_dir,
+                        work_dir=work_root,
+                        cancel_event=cancel_event,
+                    )
+                    result = created
+                else:
+                    def create_profile():
+                        with staged_upload.open("rb") as staged:
+                            return app.state.voice_profiles.create(
+                                staged,
+                                filename,
+                                name,
+                                root / "voices",
+                                work_root,
+                                cancel_event=cancel_event,
+                            )
 
-                created = await asyncio.to_thread(create_profile)
-                await app.state.jobs.finish(
-                    job_id,
-                    "completed",
-                    result={
+                    created = await asyncio.to_thread(create_profile)
+                    result = {
                         "name": created.name,
                         "slug": created.slug,
                         "language": created.language,
-                    },
+                    }
+                await app.state.jobs.finish(
+                    job_id,
+                    "completed",
+                    result=result,
                 )
-            except VoiceCreationCancelled:
+            except VoiceWorkerCancelled:
                 await app.state.jobs.finish(job_id, "cancelled")
+            except VoiceWorkerError as error:
+                app.state.voice_available = app.state.voice_worker.ready
+                if not app.state.voice_available:
+                    app.state.model_names = {"qwen": None, "whisper": None}
+                if cancel_event.is_set():
+                    await app.state.jobs.finish(job_id, "cancelled")
+                else:
+                    logger.exception("Stimmen-Worker fuer Auftrag %s ausgefallen", job_id)
+                    await app.state.jobs.finish(job_id, "failed", error=str(error))
             except VoiceProfileError as error:
                 await app.state.jobs.finish(job_id, "failed", error=str(error))
             except Exception:
@@ -232,6 +268,18 @@ def create_app(
                 )
             finally:
                 staged_upload.unlink(missing_ok=True)
+                shutil.rmtree(work_root, ignore_errors=True)
+                if app.state.voice_worker is not None:
+                    slug = make_slug(name)
+                    voices_dir = root / "voices"
+                    if worker_job_started and not profile_existed_before:
+                        final_job = await app.state.jobs.get(job_id)
+                        if final_job is not None and final_job["state"] != "completed":
+                            shutil.rmtree(voices_dir / slug, ignore_errors=True)
+                    if voices_dir.is_dir():
+                        for staging in voices_dir.glob(f".{slug}-*"):
+                            if staging not in staging_before and staging.is_dir():
+                                shutil.rmtree(staging, ignore_errors=True)
 
         task = asyncio.create_task(run_voice_job())
         app.state.background_tasks.add(task)
@@ -316,11 +364,11 @@ def create_app(
         elif selected["state"] == "cancelled":
             status = "Stimmerstellung abgebrochen."
         elif selected["state"] == "cancel_requested":
-            status = "Abbruch angefordert; laufende Modellinferenz wird beendet."
+            status = "Abbruch angefordert; der Worker wird beendet und neu geladen."
         else:
             status = "Stimme wird vorbereitet und synthetisiert ..."
 
-        can_create = app.state.voice_profiles is not None and active is None
+        can_create = voice_service_available() and active is None
         return (
             current_job_id or "",
             f"{model_status}\n\n{voices_status}\n\n{status}",
@@ -338,12 +386,12 @@ def create_app(
             return "Stimmenauftrag nicht gefunden."
         if job["state"] in {"completed", "failed", "cancelled"}:
             return "Der Stimmenauftrag ist bereits beendet."
-        return "Abbruch angefordert; laufende Modellinferenz wird danach beendet."
+        return "Abbruch angefordert; der Worker wird beendet und neu geladen."
 
     @app.get("/api/v1/status", tags=["status"])
     async def get_status() -> dict[str, object]:
         return {
-            "state": "ready" if app.state.voice_profiles is not None else "not_initialized",
+            "state": "ready" if voice_service_available() else "not_initialized",
             "active_job": await app.state.jobs.active(),
             "models": app.state.model_names,
         }

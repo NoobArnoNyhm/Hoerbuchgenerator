@@ -4,8 +4,9 @@ Offline-Webanwendung fuer lokale Qwen3-TTS-Stimmklonierung und
 Whisper-Transkription. Der Prototyp bietet einen asynchronen API-Ablauf zum
 Anlegen von Stimmenprofilen mit Transkript, wiederverwendbarem Qwen-Prompt und
 Beispielaudio. Die Gradio-Oberflaeche und die versionierte API verwenden
-denselben Stimmenauftrag und Jobstatus. Hoerbuchsynthese, isolierter Worker und
-automatischer Modelldownload sind noch nicht implementiert.
+denselben Stimmenauftrag und Jobstatus. Qwen und Whisper laufen in einem
+separaten Worker-Prozess; Hoerbuchsynthese und automatischer Modelldownload
+sind noch nicht implementiert.
 
 ## Voraussetzungen
 
@@ -45,8 +46,10 @@ Die Annahme liefert HTTP 202 mit einer Job-ID. Den Abschluss und das Ergebnis
 liefert `GET /api/v1/jobs/{id}`. Profile werden erst nach erfolgreicher
 Transkription, Promptserialisierung und Beispielaudioerzeugung atomar unter
 `data/voices/<slug>/` sichtbar. Ein Abbruch waehrend einer laufenden
-Modellinferenz wird nach Ende dieser Inferenz ausgewertet; sie wird noch nicht
-durch einen separaten Worker-Prozess beendet.
+Modellinferenz beendet den Worker-Prozess sofort. Der Worker wird anschliessend
+neu gestartet und laedt beide lokalen Modelle erneut; waehrenddessen bleibt der
+globale Auftragsslot belegt. Nicht veroeffentlichte Profil- und Arbeitsdateien
+des abgebrochenen Auftrags werden entfernt.
 
 ## Tests
 
@@ -78,6 +81,7 @@ Die faster-whisper- und Qwen-Adapter sind optionale Extras und laden nur
 ausgewaehlte, vollstaendige Modellverzeichnisse aus lokalen Pfaden. Die
 Abhaengigkeiten koennen fuer Adapterentwicklung mit
 `python -m pip install -e ".[whisper,qwen]"` installiert werden.
-Qwen-Prompts werden als NPZ-Datei ohne Pickle gespeichert. Die Pruefung mit
-Qwen 1.7B, weiteren Whisper-Modellen und realen Referenzaufnahmen sowie der
-Worker-Prozess und die Hoerbuchsynthese stehen noch aus.
+Qwen-Prompts werden als NPZ-Datei ohne Pickle gespeichert. Die technische
+Pruefung mit Qwen 1.7B und weiteren Whisper-Modellen sowie der Abbruch und
+Neustart des Workers waehrend eines echten GPU-Auftrags sind erfolgt. Tests
+mit menschlichen Referenzaufnahmen und Hoerbuchsynthese stehen noch aus.

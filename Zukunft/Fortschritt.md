@@ -116,16 +116,26 @@
   Der vollstaendige Stimmenprofilablauf mit Whisper small und Qwen 1.7B
   einschliesslich Beispielaudio war erfolgreich. Der gezielte GPU-Container
   endete mit Exit-Code 0.
+- Separaten, dauerhaft laufenden Modell-Worker implementiert: Qwen und Whisper
+  werden beim App-Start im Kindprozess geladen. Ein Abbruch beendet den
+  Inferenzprozess, bereinigt auftragsbezogene Arbeits-/unvollstaendige
+  Profilordner und startet den Worker samt Modellen neu. Ein gezielter
+  Prozess-Test bestaetigte Kill, PID-Wechsel und Folgeauftrag (**9 gezielte
+  Worker-/API-/App-Tests bestanden**).
+- Echter GPU-Auftrag mit Qwen 0.6B und Whisper base auf synthetischer Sprache:
+  den laufenden API-Auftrag abgebrochen, den Qwen-/Whisper-Worker beendet und
+  neu geladen und anschliessend im Ersatzprozess erfolgreich ein zweites
+  Profil samt Beispielaudio erstellt. Der alte Slug und Arbeitsdateien des
+  Abbruchs blieben unveroeffentlicht bzw. wurden entfernt. GPU-Container
+  endete mit Exit-Code 0.
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
 - Die UI-Stimmenanlage ist implementiert. Hoerbuchsynthese, reale
-  Nutzerreferenzen und UI-Fluss im Browser,
-  Prozessabbruch waehrend Inferenz und Modellneustart sind nicht geprueft.
-  Der API-Abbruch wird erst zwischen den Inferenzphasen ausgewertet. Ein
+  Nutzerreferenzen und UI-Fluss im Browser sind noch nicht geprueft. Ein
   automatisierter Modell-Downloadschritt fehlt.
 
 ### Naechste Schritte
 
-1. Reale Referenzaufnahmen sowie Worker-Abbruch und Modellneustart untersuchen.
-2. Implementieren: Konfiguration, separaten Worker-Prozess mit echtem
-  Inferenzabbruch und kontrolliertem Modellneustart.
+1. Reale Referenzaufnahmen untersuchen und Hoerbuchsynthese umsetzen.
+2. Konfiguration, kontrollierten Modellneustart und Offline-Betrieb weiter
+  haerten.

@@ -84,8 +84,10 @@ Die asynchrone FastAPI-Route wurde danach mit automatischer lokaler
 Modellinitialisierung ausgefuehrt: Status meldete Qwen und Whisper als geladen,
 der Multipart-Upload erhielt HTTP 202 und der Job lieferte ein vollstaendiges,
 unter dem erwarteten Slug abgelegtes Stimmenprofil. Gesamtlauf inklusive
-Modellstart: 170,3 Sekunden. Abbruch waehrend einer laufenden Modellinferenz
-bleibt kooperativ und beendet den Inferenzaufruf nicht vorzeitig.
+Modellstart: 170,3 Sekunden. Der spaeter implementierte separate
+Inferenz-Worker wird beim Abbruch beendet und neu gestartet; dessen
+Prozessabbruch und Bereinigung werden mit einem gezielten Prozess-Test
+validiert.
 
 Modellvergleich am 2026-11-07 mit denselben Offline-Bedingungen und
 synthetischer englischer Sprache: faster-whisper `medium` lud in 12,2 s und
@@ -98,6 +100,19 @@ einschliesslich Qwen-Beispielaudio mit Whisper small und Qwen 1.7B war
 erfolgreich (GPU-Container Exit-Code 0). Damit ist die technische
 Modellkompatibilitaet geprueft, nicht die Sprachqualitaet mit menschlichen
 Referenzaufnahmen.
+
+Der Prozess-Worker wurde zusaetzlich gezielt ohne Modellgewichte getestet: Ein
+blockierender Auftrag wurde beendet, der Workerprozess neu gestartet und ein
+Folgeauftrag erfolgreich beantwortet. Die neun gezielten Worker-/API-/App-
+Tests bestanden.
+
+Der echte API-Workerablauf wurde anschliessend auf der RTX 3080 Laptop GPU mit
+Qwen 0.6B, Whisper base und synthetischer englischer Sprache geprueft. Ein
+laufender Auftrag wurde abgebrochen; der urspruengliche Workerprozess endete,
+ein Ersatzprozess lud beide Modelle neu, und ein nachfolgender Stimmenauftrag
+erzeugte erfolgreich ein Profil samt Beispielaudio. Das abgebrochene Profil
+wurde nicht veroeffentlicht und die auftragsbezogenen Arbeitsdateien wurden
+entfernt. Der GPU-Smoke-Test endete mit Exit-Code 0.
 
 ## Aufbau
 
