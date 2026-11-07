@@ -100,20 +100,24 @@
   Uploadbereinigung, atomare Profilablage, Duplikat und Fehler/Abbruch:
   **53 bestanden**; eine nicht blockierende Starlette-Deprecation-Warnung
   bleibt.
-- Gradio-Mount wird im Integrationstest geprueft; die UI ist noch ein
-  Platzhalter. Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen
-  Referenzaufnahmen sind noch nicht geprueft.
-- Die Anwendung nutzt die Modelle noch nicht ueber die Gradio-Oberflaeche.
-  Qwen 1.7B, weitere Whisper-Groessen, reale Nutzerreferenzen und UI-Fluss,
+- Gradio-Oberflaeche an den gemeinsamen Stimmenauftrag angebunden:
+  Stimmenname und WAV-/MP3-Upload, laufende Statusanzeige, Abbruch und
+  Beispielaudio. UI und REST teilen Uploadannahme und globalen Jobslot.
+- UI-Callbacks geprueft: Annahme und Abschluss eines Stimmenauftrags,
+  Beispielaudio-Ausgabe sowie Ablehnung bei belegtem Jobslot. Die vollstaendige
+  Docker-Testsuite besteht mit **55 Tests**; eine nicht blockierende
+  Starlette-Deprecation-Warnung bleibt.
+- Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
+  sind noch nicht geprueft.
+- Die UI-Stimmenanlage ist implementiert. Hoerbuchsynthese, Qwen 1.7B,
+  weitere Whisper-Groessen, reale Nutzerreferenzen und UI-Fluss im Browser,
   Prozessabbruch waehrend Inferenz und Modellneustart sind nicht geprueft.
   Der API-Abbruch wird erst zwischen den Inferenzphasen ausgewertet. Ein
   automatisierter Modell-Downloadschritt fehlt.
 
 ### Naechste Schritte
 
-1. Gradio-Oberflaeche an den Stimmenauftrag und gemeinsame Jobstatusanzeige
-  anbinden.
-2. Qwen 1.7B und weitere Whisper-Groessen auf Zielhardware pruefen; reale
+1. Qwen 1.7B und weitere Whisper-Groessen auf Zielhardware pruefen; reale
   Referenzaufnahmen sowie Worker-Abbruch und Modellneustart untersuchen.
-3. Implementieren: Konfiguration, separaten Worker-Prozess mit echtem
+2. Implementieren: Konfiguration, separaten Worker-Prozess mit echtem
   Inferenzabbruch und kontrolliertem Modellneustart.

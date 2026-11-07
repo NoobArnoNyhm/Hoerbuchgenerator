@@ -3,7 +3,8 @@
 Offline-Webanwendung fuer lokale Qwen3-TTS-Stimmklonierung und
 Whisper-Transkription. Der Prototyp bietet einen asynchronen API-Ablauf zum
 Anlegen von Stimmenprofilen mit Transkript, wiederverwendbarem Qwen-Prompt und
-Beispielaudio. Hoerbuchsynthese, Gradio-Ablauf, isolierter Worker und
+Beispielaudio. Die Gradio-Oberflaeche und die versionierte API verwenden
+denselben Stimmenauftrag und Jobstatus. Hoerbuchsynthese, isolierter Worker und
 automatischer Modelldownload sind noch nicht implementiert.
 
 ## Voraussetzungen
@@ -28,6 +29,11 @@ ueberschreiben. Liegen beide lokalen Modelle in `data/models/`, werden Qwen
 kann ueber `QWEN_MODEL` und `WHISPER_MODEL`, das Whisper-Geraet ueber
 `WHISPER_DEVICE` und `WHISPER_COMPUTE_TYPE` konfiguriert werden. Qwen verwendet
 standardmaessig CUDA, BF16 und SDPA; `QWEN_DEVICE_MAP` kann das Geraet anpassen.
+
+In der UI koennen Sie einen Stimmenname und eine WAV-/MP3-Referenzaufnahme
+angeben. Der Auftrag wird angenommen, der gemeinsame Status alle zwei Sekunden
+aktualisiert und nach erfolgreichem Abschluss das synthetisierte Beispielaudio
+angezeigt. Die API-Aufrufe bleiben weiterhin verfuegbar:
 
 Stimme per REST anlegen:
 
@@ -61,11 +67,12 @@ python -m pytest
 ```
 
 Der Stimmenablauf wurde mit lokalen Qwen-0.6B-Base- und
-faster-whisper-base-Gewichten auf einer GPU geprueft. Der API-Auftrag ist
-implementiert; die Gradio-Oberflaeche verwendet ihn noch nicht. Modellgewichte
-sind nicht versioniert, und die Anwendung ist noch nicht fuer den
-Offline-Abnahmebetrieb abgenommen. Den Umsetzungsstand und offene Pruefungen
-enthaelt [Zukunft/Fortschritt.md](Zukunft/Fortschritt.md).
+faster-whisper-base-Gewichten auf einer GPU geprueft. API und Gradio nutzen
+denselben Jobslot; UI-Status, Abbruch und Beispielaudio werden aus dem
+gemeinsamen Auftrag aktualisiert. Modellgewichte sind nicht versioniert, und
+die Anwendung ist noch nicht fuer den Offline-Abnahmebetrieb abgenommen. Den
+Umsetzungsstand und offene Pruefungen enthaelt
+[Zukunft/Fortschritt.md](Zukunft/Fortschritt.md).
 
 Die faster-whisper- und Qwen-Adapter sind optionale Extras und laden nur
 ausgewaehlte, vollstaendige Modellverzeichnisse aus lokalen Pfaden. Die

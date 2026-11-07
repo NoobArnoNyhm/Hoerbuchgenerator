@@ -1,6 +1,8 @@
+import asyncio
 import time
 from threading import Event
 from types import SimpleNamespace
+import wave
 
 from fastapi.testclient import TestClient
 
@@ -18,6 +20,13 @@ class FakeVoiceProfiles:
         if self.release is not None:
             assert self.release.wait(timeout=5)
         assert upload.read() == b"audio"
+        example_dir = voices_dir / "test-voice"
+        example_dir.mkdir(parents=True, exist_ok=True)
+        with wave.open(str(example_dir / "example.wav"), "wb") as example:
+            example.setnchannels(1)
+            example.setsampwidth(2)
+            example.setframerate(24000)
+            example.writeframes(b"\0\0" * 10)
         return SimpleNamespace(name=name, slug="test-voice", language="de")
 
 
@@ -82,3 +91,44 @@ def test_voice_endpoint_requires_configured_model_service(tmp_path):
 
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == "voice_service_not_initialized"
+
+
+def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path):
+    app = create_app(tmp_path, FakeVoiceProfiles())
+    ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
+    audio_path = tmp_path / "voice.wav"
+    audio_path.write_bytes(b"audio")
+
+    async def submit_and_refresh():
+        submitted = await ui.fns[0].fn(str(audio_path), "Teststimme")
+        await asyncio.gather(*tuple(app.state.background_tasks))
+        refreshed = await ui.fns[2].fn(submitted[0], submitted[3])
+        return submitted, refreshed
+
+    submitted, refreshed = asyncio.run(submit_and_refresh())
+
+    assert submitted[1] == "Stimmenauftrag angenommen."
+    assert submitted[2] is False
+    assert refreshed[0] == submitted[0]
+    assert "Stimme **Teststimme** wurde erstellt." in refreshed[1]
+    assert refreshed[2][0] == 24000
+    assert len(refreshed[2][1]) == 10
+    assert refreshed[3]["interactive"] is True
+    assert refreshed[4]["interactive"] is False
+
+
+def test_gradio_submission_respects_shared_busy_job_slot(tmp_path):
+    app = create_app(tmp_path, FakeVoiceProfiles())
+    ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
+    audio_path = tmp_path / "voice.wav"
+    audio_path.write_bytes(b"audio")
+
+    async def submit_while_busy():
+        await app.state.jobs.reserve("voice")
+        return await ui.fns[0].fn(str(audio_path), "Teststimme")
+
+    submitted = asyncio.run(submit_while_busy())
+
+    assert submitted[0] == ""
+    assert submitted[1] == "Stimme konnte nicht gestartet werden: busy"
+    assert submitted[2] is True
