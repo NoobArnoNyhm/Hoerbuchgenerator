@@ -245,7 +245,15 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
     assert load_example("another-voice") == str(
         tmp_path / "voices" / "another-voice" / "example.wav"
     )
+    create_voice_profile(
+        tmp_path / "voices",
+        "voice-without-example",
+        name="Voice without example",
+        example=False,
+    )
+    assert load_example("voice-without-example") is None
     assert load_example(None) is None
+    assert load_example("removed-voice") is None
 
 
 def test_gradio_synthesis_requires_selected_voice(tmp_path):
