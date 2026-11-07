@@ -140,6 +140,10 @@
   Referenzstimme erstellt, anschliessend Text als WAV (46.124 Bytes) und MP3
   (35.229 Bytes) generiert und ueber die Downloadroute geladen. Der Lauf endete
   erfolgreich; temporaere Arbeitsdateien wurden bereinigt.
+- Die zuvor umfangreiche `main.py` aufgeteilt: REST-Routen liegen in `api.py`,
+  Gradio-Layout und Callbacks in `ui.py`; `hoerbuchgenerator.main:app` bleibt
+  als ASGI-Einstieg kompatibel. Die gezielten App-, Stimmen-API- und
+  Synthese-API-Regressionstests bestanden (**11 Tests**).
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
 - Reale Nutzerreferenzen, UI-Fluss im Browser und Hoerbuchqualitaet sind noch
