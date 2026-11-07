@@ -32,7 +32,7 @@ def test_gradio_ui_is_mounted_separately_and_hidden_from_api_schema():
     assert blocks.api_open is False
     assert "Text" in labels
     assert "TXT-Dateien (optional)" in labels
-    assert "Stimmen-Slug" in labels
+    assert "Stimme" in labels
     assert any(
         function.fn.__name__ == "submit_synthesis_ui"
         for function in blocks.fns.values()

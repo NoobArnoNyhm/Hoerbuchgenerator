@@ -123,7 +123,11 @@ def create_ui_callbacks(
             return "", message, True, message
         return accepted["id"], "Syntheseauftrag angenommen.", False, ""
 
-    async def refresh_voice_ui(job_id: str | None, notice: str | None):
+    async def refresh_voice_ui(
+        job_id: str | None,
+        notice: str | None,
+        selected_voice: str | None,
+    ):
         active = await app.state.jobs.active()
         job = await app.state.jobs.get(job_id) if job_id else None
         selected = active or job
@@ -134,8 +138,21 @@ def create_ui_callbacks(
             f"Whisper: `{models['whisper'] or 'nicht geladen'}`"
         )
         profile_names = sorted(
-            path.name for path in (root / "voices").iterdir() if path.is_dir()
+            path.name
+            for path in (root / "voices").iterdir()
+            if not path.name.startswith(".")
+            and not path.is_symlink()
+            and path.is_dir()
         ) if (root / "voices").is_dir() else []
+        if selected_voice not in profile_names:
+            selected_voice = (
+                selected["result"]["slug"]
+                if selected is not None
+                and selected["kind"] == "voice"
+                and selected["state"] == "completed"
+                and selected["result"]["slug"] in profile_names
+                else profile_names[0] if profile_names else None
+            )
         voices_status = (
             "Vorhandene Stimmen: " + ", ".join(profile_names)
             if profile_names
@@ -220,6 +237,7 @@ def create_ui_callbacks(
             example_audio,
             gr.update(interactive=can_create),
             gr.update(interactive=active is not None),
+            gr.update(choices=profile_names, value=selected_voice),
             "" if selected else notice or "",
         )
 
@@ -282,9 +300,10 @@ def create_ui(
             type="filepath",
         )
         with gr.Row():
-            synthesis_voice = gr.Textbox(
-                label="Stimmen-Slug",
-                placeholder="Zum Beispiel: meine_stimme",
+            synthesis_voice = gr.Dropdown(
+                label="Stimme",
+                choices=[],
+                value=None,
             )
             synthesis_language = gr.Dropdown(
                 label="Sprache",
@@ -310,13 +329,29 @@ def create_ui(
         )
         timer.tick(
             refresh_voice,
-            inputs=[job_id, notice],
-            outputs=[job_id, status, example, create_button, cancel_button, notice],
+            inputs=[job_id, notice, synthesis_voice],
+            outputs=[
+                job_id,
+                status,
+                example,
+                create_button,
+                cancel_button,
+                synthesis_voice,
+                notice,
+            ],
         )
         ui.load(
             refresh_voice,
-            inputs=[job_id, notice],
-            outputs=[job_id, status, example, create_button, cancel_button, notice],
+            inputs=[job_id, notice, synthesis_voice],
+            outputs=[
+                job_id,
+                status,
+                example,
+                create_button,
+                cancel_button,
+                synthesis_voice,
+                notice,
+            ],
         )
         synthesis_button.click(
             submit_synthesis,

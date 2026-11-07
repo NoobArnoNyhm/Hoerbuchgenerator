@@ -183,6 +183,10 @@
   optionaler Beispielaudio-URL; Transkript und Referenzaufnahme bleiben
   ausgeschlossen. Eine sichere WAV-Downloadroute und Fehlerantworten fuer
   ungueltige Profildaten sind ergaenzt.
+- Das manuelle Gradio-Stimmen-Slug-Feld durch eine Auswahl vorhandener Profile
+  ersetzt. Die Auswahl wird beim Laden und mit der Statusaktualisierung
+  synchronisiert, behaelt gueltige Auswahlen bei und waehlt eine neu erstellte
+  Stimme automatisch aus.
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
 - Reale Nutzerreferenzen, UI-Fluss im Browser und Hoerbuchqualitaet sind noch

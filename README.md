@@ -46,7 +46,9 @@ bleiben dabei unangetastet.
 In der UI koennen Sie einen Stimmenname und eine WAV-/MP3-Referenzaufnahme
 angeben. Der Auftrag wird angenommen, der gemeinsame Status alle zwei Sekunden
 aktualisiert und nach erfolgreichem Abschluss das synthetisierte Beispielaudio
-angezeigt. Die API-Aufrufe bleiben weiterhin verfuegbar:
+angezeigt. Fuer die Synthese waehlen Sie ein vorhandenes Stimmenprofil aus der
+automatisch aktualisierten Stimmenauswahl. Die API-Aufrufe bleiben weiterhin
+verfuegbar:
 
 Stimme per REST anlegen:
 

@@ -203,7 +203,7 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
     async def submit_and_refresh():
         submitted = await ui.fns[0].fn(str(audio_path), "Teststimme")
         await asyncio.gather(*tuple(app.state.background_tasks))
-        refreshed = await ui.fns[2].fn(submitted[0], submitted[3])
+        refreshed = await ui.fns[2].fn(submitted[0], submitted[3], None)
         return submitted, refreshed
 
     submitted, refreshed = asyncio.run(submit_and_refresh())
@@ -216,6 +216,8 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
     assert len(refreshed[2][1]) == 10
     assert refreshed[3]["interactive"] is True
     assert refreshed[4]["interactive"] is False
+    assert refreshed[5]["choices"] == ["test-voice"]
+    assert refreshed[5]["value"] == "test-voice"
 
 
 def test_gradio_submission_respects_shared_busy_job_slot(tmp_path):
