@@ -186,6 +186,8 @@
 - UI und Stimmenlisten-API verwenden dieselbe Profilvalidierung. Unvollstaendige
   oder fehlerhafte Profilordner werden nicht in der UI angeboten; ein sichtbarer
   Statushinweis benennt das betroffene Profil.
+- Die Stimmenauswahl zeigt Profilnamen und Sprachcodes an, uebermittelt intern
+  weiterhin den jeweiligen Stimmen-Slug.
 - Das manuelle Gradio-Stimmen-Slug-Feld durch eine Auswahl vorhandener Profile
   ersetzt. Die Auswahl wird beim Laden und mit der Statusaktualisierung
   synchronisiert, behaelt gueltige Auswahlen bei und waehlt eine neu erstellte

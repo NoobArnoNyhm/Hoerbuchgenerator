@@ -145,6 +145,10 @@ def create_ui_callbacks(
             voices = []
             catalog_error = error
         profile_names = [voice["slug"] for voice in voices]
+        voice_choices = [
+            (f"{voice['name']} ({voice['language']})", voice["slug"])
+            for voice in voices
+        ]
         if selected_voice not in profile_names:
             selected_voice = (
                 selected["result"]["slug"]
@@ -240,7 +244,7 @@ def create_ui_callbacks(
             example_audio,
             gr.update(interactive=can_create),
             gr.update(interactive=active is not None),
-            gr.update(choices=profile_names, value=selected_voice),
+            gr.update(choices=voice_choices, value=selected_voice),
             "" if selected else notice or "",
         )
 

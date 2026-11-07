@@ -220,7 +220,7 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
     assert len(refreshed[2][1]) == 10
     assert refreshed[3]["interactive"] is True
     assert refreshed[4]["interactive"] is False
-    assert refreshed[5]["choices"] == ["test-voice"]
+    assert refreshed[5]["choices"] == [("Teststimme (de)", "test-voice")]
     assert refreshed[5]["value"] == "test-voice"
 
     create_voice_profile(
@@ -232,7 +232,10 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
         ui.fns[2].fn(submitted[0], refreshed[6], refreshed[5]["value"])
     )
 
-    assert refreshed_again[5]["choices"] == ["another-voice", "test-voice"]
+    assert refreshed_again[5]["choices"] == [
+        ("Another voice (de)", "another-voice"),
+        ("Teststimme (de)", "test-voice"),
+    ]
     assert refreshed_again[5]["value"] == "test-voice"
 
 
