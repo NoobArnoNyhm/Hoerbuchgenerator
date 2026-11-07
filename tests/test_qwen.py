@@ -49,9 +49,21 @@ def test_local_loader_rejects_missing_weights(tmp_path):
     model_path.mkdir()
     for filename in QWEN_REQUIRED_FILES:
         if filename != "model.safetensors":
-            (model_path / filename).touch()
+            (model_path / filename).write_bytes(b"valid")
 
     with pytest.raises(QwenError, match="model.safetensors"):
+        QwenTTSAdapter.load_local(QWEN_BASE_MODELS[0], tmp_path)
+
+
+def test_local_loader_rejects_empty_weights(tmp_path):
+    model_path = tmp_path / QWEN_BASE_MODELS[0]
+    model_path.mkdir()
+    for filename in QWEN_REQUIRED_FILES:
+        (model_path / filename).write_bytes(
+            b"" if filename == "model.safetensors" else b"valid"
+        )
+
+    with pytest.raises(QwenError, match="model.safetensors \\(empty\\)"):
         QwenTTSAdapter.load_local(QWEN_BASE_MODELS[0], tmp_path)
 
 
@@ -59,7 +71,7 @@ def test_loader_passes_local_only_flag_to_model_loader(tmp_path, monkeypatch):
     model_path = tmp_path / QWEN_BASE_MODELS[0]
     model_path.mkdir()
     for filename in QWEN_REQUIRED_FILES:
-        (model_path / filename).touch()
+        (model_path / filename).write_bytes(b"valid")
     calls = []
     monkeypatch.setenv("HF_HUB_OFFLINE", "0")
     monkeypatch.setenv("TRANSFORMERS_OFFLINE", "0")

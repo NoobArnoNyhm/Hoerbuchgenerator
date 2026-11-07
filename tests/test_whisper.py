@@ -114,3 +114,14 @@ def test_load_local_rejects_incomplete_cache_before_loading(tmp_path):
 
     with pytest.raises(WhisperError, match="unvollstaendig"):
         FasterWhisperAdapter.load_local("base", tmp_path)
+
+
+def test_load_local_rejects_empty_model_weights(tmp_path):
+    model_path = tmp_path / "base"
+    model_path.mkdir()
+    (model_path / "config.json").write_bytes(b"valid")
+    (model_path / "model.bin").write_bytes(b"")
+    (model_path / "tokenizer.json").write_bytes(b"valid")
+
+    with pytest.raises(WhisperError, match="model.bin \\(empty\\)"):
+        FasterWhisperAdapter.load_local("base", tmp_path)

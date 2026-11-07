@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
+from hoerbuchgenerator.model_cache import incomplete_model_files
 from hoerbuchgenerator.voice_prompt import VoicePrompt, VoicePromptError, VoicePromptStore
 
 
@@ -76,13 +77,11 @@ class QwenTTSAdapter:
         if model_name not in QWEN_BASE_MODELS:
             raise QwenError(f"Nicht unterstuetztes Qwen-Base-Modell: {model_name}")
         model_path = Path(models_dir) / model_name
-        missing = [
-            name for name in QWEN_REQUIRED_FILES if not (model_path / name).is_file()
-        ]
-        if missing:
+        incomplete = incomplete_model_files(model_path, QWEN_REQUIRED_FILES)
+        if incomplete:
             raise QwenError(
                 f"Lokales Qwen-Modell '{model_name}' fehlt oder ist unvollstaendig: "
-                f"{', '.join(missing)} in {model_path}"
+                f"{', '.join(incomplete)} in {model_path}"
             )
 
         if loader is None:

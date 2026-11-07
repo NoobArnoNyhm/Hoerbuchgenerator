@@ -14,6 +14,7 @@ from fastapi import FastAPI, HTTPException
 from hoerbuchgenerator.audio import MAX_UPLOAD_BYTES
 from hoerbuchgenerator.api import register_api_routes
 from hoerbuchgenerator.jobs import JobManager, JobSlotBusy
+from hoerbuchgenerator.model_cache import incomplete_model_files
 from hoerbuchgenerator.naming import make_slug
 from hoerbuchgenerator.qwen import (
     QWEN_BASE_MODELS,
@@ -145,17 +146,15 @@ def create_app(
                     )
                 qwen_path = root / "models" / "huggingface" / qwen_name
                 whisper_path = root / "models" / "whisper" / whisper_name
-                missing_qwen = [
-                    name
-                    for name in QWEN_REQUIRED_FILES
-                    if not (qwen_path / name).is_file()
-                ]
-                missing_whisper = [
-                    name
-                    for name in WHISPER_REQUIRED_FILES
-                    if not (whisper_path / name).is_file()
-                ]
-                if not missing_qwen and not missing_whisper:
+                incomplete_qwen = incomplete_model_files(
+                    qwen_path,
+                    QWEN_REQUIRED_FILES,
+                )
+                incomplete_whisper = incomplete_model_files(
+                    whisper_path,
+                    WHISPER_REQUIRED_FILES,
+                )
+                if not incomplete_qwen and not incomplete_whisper:
                     application.state.voice_worker = VoiceWorker(
                         {
                             "qwen_model": qwen_name,
@@ -181,9 +180,9 @@ def create_app(
                         "Lokale Modell-Caches fehlen oder sind unvollstaendig; "
                         "Modellinitialisierung uebersprungen "
                         "(Qwen %s fehlend in %s; Whisper %s fehlend in %s)",
-                        missing_qwen or "vollstaendig",
+                        incomplete_qwen or "vollstaendig",
                         qwen_path,
-                        missing_whisper or "vollstaendig",
+                        incomplete_whisper or "vollstaendig",
                         whisper_path,
                     )
             try:

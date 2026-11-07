@@ -87,16 +87,36 @@ def test_startup_skips_incomplete_local_model_caches(tmp_path, caplog):
     qwen_path.mkdir(parents=True)
     whisper_path.mkdir(parents=True)
     for filename in QWEN_REQUIRED_FILES:
-        (qwen_path / filename).touch()
-    (whisper_path / "config.json").touch()
-    (whisper_path / "tokenizer.json").touch()
+        (qwen_path / filename).write_bytes(b"valid")
+    (whisper_path / "config.json").write_bytes(b"valid")
+    (whisper_path / "tokenizer.json").write_bytes(b"valid")
 
     with TestClient(create_app(tmp_path)) as client:
         response = client.get("/api/v1/status")
 
     assert response.json()["state"] == "not_initialized"
     assert response.json()["models"] == {"qwen": None, "whisper": None}
-    assert "model.bin" in caplog.text
+    assert "model.bin (missing)" in caplog.text
+
+
+def test_startup_skips_empty_local_model_files(tmp_path, caplog):
+    qwen_path = tmp_path / "models" / "huggingface" / "Qwen3-TTS-12Hz-0.6B-Base"
+    whisper_path = tmp_path / "models" / "whisper" / "base"
+    qwen_path.mkdir(parents=True)
+    whisper_path.mkdir(parents=True)
+    for filename in QWEN_REQUIRED_FILES:
+        (qwen_path / filename).write_bytes(b"valid")
+    for filename in WHISPER_REQUIRED_FILES:
+        (whisper_path / filename).write_bytes(
+            b"" if filename == "model.bin" else b"valid"
+        )
+
+    with TestClient(create_app(tmp_path)) as client:
+        response = client.get("/api/v1/status")
+
+    assert response.json()["state"] == "not_initialized"
+    assert response.json()["models"] == {"qwen": None, "whisper": None}
+    assert "model.bin (empty)" in caplog.text
 
 
 def test_startup_loads_worker_from_complete_local_model_caches(
@@ -110,9 +130,9 @@ def test_startup_loads_worker_from_complete_local_model_caches(
     qwen_path.mkdir(parents=True)
     whisper_path.mkdir(parents=True)
     for filename in QWEN_REQUIRED_FILES:
-        (qwen_path / filename).touch()
+        (qwen_path / filename).write_bytes(b"valid")
     for filename in WHISPER_REQUIRED_FILES:
-        (whisper_path / filename).touch()
+        (whisper_path / filename).write_bytes(b"valid")
     monkeypatch.setenv("QWEN_MODEL", qwen_name)
     monkeypatch.setenv("WHISPER_MODEL", whisper_name)
 

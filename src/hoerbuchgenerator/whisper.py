@@ -10,6 +10,7 @@ from hoerbuchgenerator.audio import (
     extract_audio_segment,
     select_reference_window,
 )
+from hoerbuchgenerator.model_cache import incomplete_model_files
 
 
 WHISPER_MODELS = ("tiny", "base", "small", "medium", "large-v3")
@@ -59,13 +60,11 @@ class FasterWhisperAdapter:
             raise WhisperError(f"Nicht unterstuetztes Whisper-Modell: {model_name}")
 
         model_path = Path(models_dir) / model_name
-        missing = [
-            name for name in WHISPER_REQUIRED_FILES if not (model_path / name).is_file()
-        ]
-        if missing:
+        incomplete = incomplete_model_files(model_path, WHISPER_REQUIRED_FILES)
+        if incomplete:
             raise WhisperError(
                 f"Whisper-Modell '{model_name}' fehlt oder ist unvollstaendig: "
-                f"{', '.join(missing)} in {model_path}"
+                f"{', '.join(incomplete)} in {model_path}"
             )
 
         try:

@@ -176,6 +176,9 @@
   Fehler bei der Bereinigung brechen den Start mit Pfad und Ursache ab.
   Regressionstest bestaetigt, dass persistente Stimmenprofile und fertige
   Ausgaben unberuehrt bleiben.
+- Die Cache-Validierung weist nun auch leere Pflichtdateien in Qwen-/Whisper-
+  Caches zurueck. Adapter und App-Start verwenden dieselbe Pruefung und
+  protokollieren fehlende, leere oder nicht lesbare Dateien getrennt.
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
 - Reale Nutzerreferenzen, UI-Fluss im Browser und Hoerbuchqualitaet sind noch
