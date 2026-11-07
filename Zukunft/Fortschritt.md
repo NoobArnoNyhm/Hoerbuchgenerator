@@ -168,6 +168,10 @@
   Absatzpausen und Bereinigung temporaerer Dateien stimmen. Die Audio-
   qualitaet der generierten Sprache und menschliche Referenzaufnahmen sind
   damit nicht bewertet.
+- Den Fortschritt eines langen API-Syntheseauftrags ueber `GET /jobs/{id}`
+  waehrend eines pausierten Chunks und nach Abschluss geprueft: Phase, Gesamt-
+  und Abschlusszaehler sowie Bereinigung des Auftragsverzeichnisses stimmen.
+  Synthese- und API-Regressionen bestanden (**10 Tests**).
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
 - Reale Nutzerreferenzen, UI-Fluss im Browser und Hoerbuchqualitaet sind noch

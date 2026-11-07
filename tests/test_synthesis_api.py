@@ -1,4 +1,6 @@
+import asyncio
 import json
+import threading
 import time
 import wave
 
@@ -93,6 +95,67 @@ def test_file_api_processes_multiple_text_files_sequentially(tmp_path):
         "first.wav",
         "second.wav",
     ]
+
+
+def test_long_text_api_reports_chunk_progress_until_completion(tmp_path):
+    class PausedSynthesisWorker(FakeSynthesisWorker):
+        def __init__(self):
+            super().__init__()
+            self.first_chunk_started = threading.Event()
+            self.release_first_chunk = threading.Event()
+
+        async def execute(self, command, cancel_event):
+            self.first_chunk_started.set()
+            await asyncio.to_thread(self.release_first_chunk.wait, 10)
+            return await super().execute(command, cancel_event)
+
+    app = create_app(tmp_path, voice_profiles=object())
+    worker = PausedSynthesisWorker()
+    app.state.voice_worker = worker
+    voice = tmp_path / "voices" / "test_voice"
+    voice.mkdir(parents=True)
+    (voice / "metadata.json").write_text(
+        json.dumps({"language": "en"}),
+        encoding="utf-8",
+    )
+    (voice / "voice-prompt.npz").write_bytes(b"prompt")
+    paragraphs = [
+        f"Chapter section {index} contains a synthetic test sentence."
+        for index in range(12)
+    ]
+
+    try:
+        with TestClient(app) as client:
+            accepted = client.post(
+                "/api/v1/synthesis/text",
+                data={
+                    "text": "\n\n".join(paragraphs),
+                    "name": "Long Book",
+                    "voice": "test_voice",
+                    "language": "en",
+                    "format": "wav",
+                },
+            )
+            assert accepted.status_code == 202
+            job_id = accepted.json()["id"]
+            assert worker.first_chunk_started.wait(10)
+
+            active_job = client.get(f"/api/v1/jobs/{job_id}").json()
+            assert active_job["state"] == "running"
+            assert active_job["phase"] == "synthesizing"
+            assert active_job["total"] == len(paragraphs)
+            assert active_job["completed"] == 0
+
+            worker.release_first_chunk.set()
+            job = wait_for_job(client, job_id)
+
+        assert job["state"] == "completed", job
+        assert job["total"] == len(paragraphs)
+        assert job["completed"] == len(paragraphs)
+        assert job["result"]["files"][0]["chunks"] == len(paragraphs)
+        assert not (tmp_path / "work" / job_id).exists()
+    finally:
+        worker.release_first_chunk.set()
 
 
 def test_bulk_synthesis_keeps_completed_files_when_one_file_fails(tmp_path):
