@@ -44,7 +44,7 @@ docker compose -f compose.test.yaml run --rm --entrypoint bash test
 ## Verifizierter Lauf
 
 Am 2026-11-07 wurde das Image gebaut und die komplette Testsuite im Container
-ausgefuehrt: **46 bestanden**. Der FFmpeg-/FFprobe-Integrationstest lief dabei
+ausgefuehrt: **53 bestanden**. Der FFmpeg-/FFprobe-Integrationstest lief dabei
 mit. Es gab eine nicht blockierende Starlette-Deprecation-Warnung.
 
 ## Modell-Smoke-Test auf GPU
@@ -71,6 +71,21 @@ und eine mit leisem rosa Rauschen ueberlagerte Referenz von 11,70 Sekunden
 wurden jeweils mit Sprache `en` transkribiert. Eine stille Aufnahme wurde
 abgewiesen; temporaere Dateien wurden bereinigt. Es wurden keine menschlichen
 Sprachaufnahmen verwendet.
+
+Der API- und Profilablauf wurde anschliessend mit lokalen Whisper-Base- und
+Qwen-0.6B-Base-Gewichten vollstaendig ausgefuehrt. Das temporaere Profil wurde
+erst nach erfolgreicher NPZ-Promptserialisierung und Beispielgenerierung
+atomar unter dem Slug veroeffentlicht. Das Beispielaudio ist 6,08 Sekunden
+lang, PCM-Mono mit 24 kHz. Qwen-Ladezeit: 58,4 Sekunden; Profilablauf nach
+Modellstart: 15,2 Sekunden. Auch dieser Test verwendete ausschliesslich
+synthetisch erzeugte Sprache.
+
+Die asynchrone FastAPI-Route wurde danach mit automatischer lokaler
+Modellinitialisierung ausgefuehrt: Status meldete Qwen und Whisper als geladen,
+der Multipart-Upload erhielt HTTP 202 und der Job lieferte ein vollstaendiges,
+unter dem erwarteten Slug abgelegtes Stimmenprofil. Gesamtlauf inklusive
+Modellstart: 170,3 Sekunden. Abbruch waehrend einer laufenden Modellinferenz
+bleibt kooperativ und beendet den Inferenzaufruf nicht vorzeitig.
 
 ## Aufbau
 

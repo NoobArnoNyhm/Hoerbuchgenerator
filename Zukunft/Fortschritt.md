@@ -77,18 +77,43 @@
   bereinigt.
 - Vollstaendige Docker-Testsuite nach der Upload-Ergaenzung: **46 bestanden**;
   die nicht blockierende Starlette-Deprecation-Warnung bleibt.
-- Gradio-Mount wird im Integrationstest geprueft; UI im Browser und
-  Audio-Upload/-Wiedergabe mit echten Modellablaeufen sind noch nicht geprueft.
-- Die vollstaendige Anwendung nutzt die getesteten Modelle noch nicht.
-  Qwen 1.7B, weitere Whisper-Groessen, reale Nutzerreferenzen, UI/API-Fluss,
-  Worker-Abbruch und Modellneustart sind nicht geprueft. Ein automatisierter
-  Modell-Downloadschritt fehlt.
+- Asynchronen `POST /api/v1/voices`-Auftrag und `GET /api/v1/jobs/{id}` fuer
+  Stimmenanlage ergaenzt. Uploads werden vor Annahme der Aufgabe begrenzt
+  gestreamt, ein aktiver Auftrag blockiert weitere Uploads mit HTTP 403. Qwen-
+  und Whisper-Adapter werden beim App-Start aus den konfigurierten lokalen
+  Modellverzeichnissen geladen.
+- Stimmenprofile werden vor der Veroeffentlichung in einem temporaeren Ordner
+  aufgebaut: Referenz-WAV, Transkript, NPZ-Prompt, Metadaten und validiertes
+  Beispiel-WAV. Erst nach vollstaendiger Erzeugung wird der Profilordner
+  atomar umbenannt; Duplikate, Synthesefehler und Abbruch veroeffentlichen
+  kein Profil.
+- Echte Whisper-/Qwen-0.6B-Ende-zu-Ende-Pruefung mit synthetischer englischer
+  Sprache: Profil samt allen fuenf Dateien erstellt, Transkript und Sprache
+  `en` gespeichert sowie ein 6,08-s-PCM-Mono-24-kHz-Beispiel synthetisiert.
+  Qwen-Ladezeit in diesem Lauf: 58,4 s; Stimmerstellung: 15,2 s. Die
+  Referenz war keine menschliche Aufnahme.
+- Zusaetzlich die echte asynchrone REST-Route mit lokaler Modellinitialisierung
+  durchlaufen: Status meldete beide geladenen Modelle, `POST /api/v1/voices`
+  lieferte 202 und der Job endete erfolgreich mit Profil unter dem erwarteten
+  Slug. Gesamtlauf mit Modellstart: 170,3 s.
+- Tests fuer API-202/Jobergebnis, Modellservice-Fehler, Busy-403,
+  Uploadbereinigung, atomare Profilablage, Duplikat und Fehler/Abbruch:
+  **53 bestanden**; eine nicht blockierende Starlette-Deprecation-Warnung
+  bleibt.
+- Gradio-Mount wird im Integrationstest geprueft; die UI ist noch ein
+  Platzhalter. Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen
+  Referenzaufnahmen sind noch nicht geprueft.
+- Die Anwendung nutzt die Modelle noch nicht ueber die Gradio-Oberflaeche.
+  Qwen 1.7B, weitere Whisper-Groessen, reale Nutzerreferenzen und UI-Fluss,
+  Prozessabbruch waehrend Inferenz und Modellneustart sind nicht geprueft.
+  Der API-Abbruch wird erst zwischen den Inferenzphasen ausgewertet. Ein
+  automatisierter Modell-Downloadschritt fehlt.
 
 ### Naechste Schritte
 
-1. Whisper-Vorbereitung mit asynchronem Stimmenauftrag, Qwen-Prompt,
-  Beispielaudio und atomarer Profilablage verbinden.
+1. Gradio-Oberflaeche an den Stimmenauftrag und gemeinsame Jobstatusanzeige
+  anbinden.
 2. Qwen 1.7B und weitere Whisper-Groessen auf Zielhardware pruefen; reale
   Referenzaufnahmen sowie Worker-Abbruch und Modellneustart untersuchen.
-3. Implementieren: Konfiguration, Worker-Prozess, Stimmenpersistenz und echte
-  asynchrone Auftragsannahme.
+3. Implementieren: Konfiguration, separaten Worker-Prozess mit echtem
+  Inferenzabbruch und kontrolliertem Modellneustart.
