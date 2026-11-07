@@ -1,3 +1,5 @@
+import json
+import logging
 import re
 from collections.abc import Awaitable, Callable
 from pathlib import Path
@@ -5,6 +7,9 @@ from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
+
+
+logger = logging.getLogger(__name__)
 
 
 def register_api_routes(
@@ -21,6 +26,96 @@ def register_api_routes(
             "active_job": await app.state.jobs.active(),
             "models": app.state.model_names,
         }
+
+    @app.get("/api/v1/voices", tags=["voices"])
+    async def list_voices() -> dict[str, list[dict[str, object]]]:
+        voices_dir = root / "voices"
+        voices = []
+        if not voices_dir.is_dir():
+            return {"voices": voices}
+
+        for profile_dir in sorted(voices_dir.iterdir(), key=lambda path: path.name):
+            if (
+                profile_dir.name.startswith(".")
+                or profile_dir.is_symlink()
+                or not profile_dir.is_dir()
+            ):
+                continue
+            metadata_path = profile_dir / "metadata.json"
+            if not metadata_path.is_file() or metadata_path.is_symlink():
+                raise HTTPException(
+                    status_code=500,
+                    detail={"code": "voice_profile_invalid"},
+                )
+            try:
+                metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+                logger.exception(
+                    "Metadaten fuer Stimmenprofil %s konnten nicht gelesen werden",
+                    profile_dir.name,
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail={"code": "voice_profile_invalid"},
+                ) from error
+            if (
+                not isinstance(metadata, dict)
+                or not isinstance(metadata.get("name"), str)
+                or metadata.get("slug") != profile_dir.name
+                or not isinstance(metadata.get("language"), str)
+            ):
+                logger.error(
+                    "Metadaten fuer Stimmenprofil %s haben ein ungueltiges Format",
+                    profile_dir.name,
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail={"code": "voice_profile_invalid"},
+                )
+
+            example_path = profile_dir / "example.wav"
+            voices.append(
+                {
+                    "slug": profile_dir.name,
+                    "name": metadata["name"],
+                    "language": metadata["language"],
+                    "qwen_model": metadata.get("qwen_model"),
+                    "created_at": metadata.get("created_at"),
+                    "example_audio_url": (
+                        f"/api/v1/voices/{profile_dir.name}/example"
+                        if example_path.is_file() and not example_path.is_symlink()
+                        else None
+                    ),
+                }
+            )
+        return {"voices": voices}
+
+    @app.get("/api/v1/voices/{slug}/example", tags=["voices"])
+    async def get_voice_example(slug: str) -> FileResponse:
+        if (
+            re.fullmatch(r"[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?", slug) is None
+        ):
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "voice_example_not_found"},
+            )
+        profile_dir = root / "voices" / slug
+        example_path = profile_dir / "example.wav"
+        if (
+            profile_dir.is_symlink()
+            or not profile_dir.is_dir()
+            or example_path.is_symlink()
+            or not example_path.is_file()
+        ):
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "voice_example_not_found"},
+            )
+        return FileResponse(
+            example_path,
+            media_type="audio/wav",
+            filename="example.wav",
+        )
 
     @app.get("/api/v1/jobs/{job_id}", tags=["jobs"])
     async def get_job(job_id: str) -> dict[str, object]:

@@ -179,6 +179,10 @@
 - Die Cache-Validierung weist nun auch leere Pflichtdateien in Qwen-/Whisper-
   Caches zurueck. Adapter und App-Start verwenden dieselbe Pruefung und
   protokollieren fehlende, leere oder nicht lesbare Dateien getrennt.
+- `GET /api/v1/voices` listet Profile sortiert mit ausgewählten Metadaten und
+  optionaler Beispielaudio-URL; Transkript und Referenzaufnahme bleiben
+  ausgeschlossen. Eine sichere WAV-Downloadroute und Fehlerantworten fuer
+  ungueltige Profildaten sind ergaenzt.
 - Browser-Upload/-Wiedergabe und Qualitaet mit menschlichen Referenzaufnahmen
   sind noch nicht geprueft.
 - Reale Nutzerreferenzen, UI-Fluss im Browser und Hoerbuchqualitaet sind noch

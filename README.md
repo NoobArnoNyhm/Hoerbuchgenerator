@@ -63,6 +63,11 @@ neu gestartet und laedt beide lokalen Modelle erneut; waehrenddessen bleibt der
 globale Auftragsslot belegt. Nicht veroeffentlichte Profil- und Arbeitsdateien
 des abgebrochenen Auftrags werden entfernt.
 
+Vorhandene Profile samt Sprache, Modell und Beispielaudio-URL liefert
+`GET /api/v1/voices`. Das Beispiel ist ueber
+`GET /api/v1/voices/{slug}/example` abrufbar; Transkript und Referenzaufnahme
+werden nicht in der Stimmenliste ausgegeben.
+
 Kurzen Text als WAV synthetisieren und Ergebnis herunterladen:
 
 ```powershell

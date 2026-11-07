@@ -38,6 +38,8 @@ def test_gradio_ui_is_mounted_separately_and_hidden_from_api_schema():
         for function in blocks.fns.values()
     )
     assert "/api/v1/status" in app.openapi()["paths"]
+    assert "/api/v1/voices" in app.openapi()["paths"]
+    assert "/api/v1/voices/{slug}/example" in app.openapi()["paths"]
     assert "/api/v1/synthesis/text" in app.openapi()["paths"]
     assert "/api/v1/synthesis/files" in app.openapi()["paths"]
     assert "/api/v1/output/{name}" in app.openapi()["paths"]

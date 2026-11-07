@@ -1,9 +1,11 @@
 import asyncio
+import json
 import time
 from threading import Event
 from types import SimpleNamespace
 import wave
 
+import pytest
 from fastapi.testclient import TestClient
 
 from hoerbuchgenerator.main import create_app
@@ -38,6 +40,33 @@ def create_upload(client, name="Teststimme"):
     )
 
 
+def create_voice_profile(voices_dir, slug, *, name, language="de", example=True):
+    profile_dir = voices_dir / slug
+    profile_dir.mkdir(parents=True)
+    (profile_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "name": name,
+                "slug": slug,
+                "language": language,
+                "language_probability": 0.99,
+                "transcript": "private transcript",
+                "qwen_model": "Qwen3-TTS-12Hz-0.6B-Base",
+                "created_at": "2026-11-07T12:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+    if example:
+        with wave.open(str(profile_dir / "example.wav"), "wb") as audio:
+            audio.setnchannels(1)
+            audio.setsampwidth(2)
+            audio.setframerate(24_000)
+            audio.writeframes(b"\0\0" * 10)
+    return profile_dir
+
+
 def wait_for_job(client, job_id):
     deadline = time.monotonic() + 5
     while time.monotonic() < deadline:
@@ -46,6 +75,78 @@ def wait_for_job(client, job_id):
             return response.json()
         time.sleep(0.01)
     raise AssertionError("Voice job did not finish")
+
+
+def test_voice_list_returns_sorted_public_metadata_and_example_urls(tmp_path):
+    voices_dir = tmp_path / "voices"
+    create_voice_profile(voices_dir, "zweite_stimme", name="Zweite Stimme")
+    create_voice_profile(
+        voices_dir,
+        "erste_stimme",
+        name="Erste Stimme",
+        language="en",
+        example=False,
+    )
+    staging_dir = voices_dir / ".temporary-profile"
+    staging_dir.mkdir()
+    (staging_dir / "metadata.json").write_text("{}", encoding="utf-8")
+
+    with TestClient(create_app(tmp_path)) as client:
+        response = client.get("/api/v1/voices")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "voices": [
+            {
+                "slug": "erste_stimme",
+                "name": "Erste Stimme",
+                "language": "en",
+                "qwen_model": "Qwen3-TTS-12Hz-0.6B-Base",
+                "created_at": "2026-11-07T12:00:00+00:00",
+                "example_audio_url": None,
+            },
+            {
+                "slug": "zweite_stimme",
+                "name": "Zweite Stimme",
+                "language": "de",
+                "qwen_model": "Qwen3-TTS-12Hz-0.6B-Base",
+                "created_at": "2026-11-07T12:00:00+00:00",
+                "example_audio_url": "/api/v1/voices/zweite_stimme/example",
+            },
+        ]
+    }
+    assert "transcript" not in response.text
+
+
+def test_voice_example_endpoint_downloads_only_profile_example(tmp_path):
+    create_voice_profile(tmp_path / "voices", "test_voice", name="Teststimme")
+
+    with TestClient(create_app(tmp_path)) as client:
+        response = client.get("/api/v1/voices/test_voice/example")
+        missing = client.get("/api/v1/voices/unknown/example")
+        traversal = client.get("/api/v1/voices/%2e%2e/example")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/wav"
+    assert response.content.startswith(b"RIFF")
+    assert missing.status_code == 404
+    assert traversal.status_code == 404
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    ["not-json", json.dumps({"name": "Broken", "slug": "bad_voice"})],
+)
+def test_voice_list_reports_invalid_profile_metadata(tmp_path, metadata):
+    profile_dir = tmp_path / "voices" / "bad_voice"
+    profile_dir.mkdir(parents=True)
+    (profile_dir / "metadata.json").write_text(metadata, encoding="utf-8")
+
+    with TestClient(create_app(tmp_path)) as client:
+        response = client.get("/api/v1/voices")
+
+    assert response.status_code == 500
+    assert response.json()["detail"]["code"] == "voice_profile_invalid"
 
 
 def test_voice_endpoint_accepts_async_job_and_exposes_result(tmp_path):
