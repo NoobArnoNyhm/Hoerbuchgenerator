@@ -6,9 +6,11 @@ from types import SimpleNamespace
 import wave
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from hoerbuchgenerator.main import create_app
+from hoerbuchgenerator.ui import create_ui_callbacks
 
 
 class FakeVoiceProfiles:
@@ -270,6 +272,63 @@ def test_gradio_synthesis_requires_selected_voice(tmp_path):
         True,
         "Bitte eine Stimme auswaehlen.",
     )
+
+
+def test_gradio_synthesis_preserves_uploaded_file_order_and_content(tmp_path):
+    captured = {}
+
+    async def accept_synthesis(items, voice, language, output_format):
+        captured["items"] = [
+            (name, await read_all(reader))
+            for name, reader in items
+        ]
+        captured["voice"] = voice
+        captured["language"] = language
+        captured["output_format"] = output_format
+        return {"id": "job-123"}
+
+    async def unused_upload(*args):
+        raise AssertionError("Voice upload is not expected")
+
+    async def read_all(reader):
+        chunks = []
+        while chunk := await reader(4):
+            chunks.append(chunk)
+        return b"".join(chunks)
+
+    first = tmp_path / "chapter-one.txt"
+    second = tmp_path / "chapter-two.txt"
+    first.write_bytes("Erstes Kapitel".encode("utf-8"))
+    second.write_bytes("Zweites Kapitel".encode("utf-8"))
+    callbacks = create_ui_callbacks(
+        FastAPI(),
+        tmp_path,
+        unused_upload,
+        accept_synthesis,
+        lambda: True,
+    )
+
+    submitted = asyncio.run(
+        callbacks[1](
+            "",
+            "",
+            [str(first), str(second)],
+            "test-voice",
+            "de",
+            "wav",
+        )
+    )
+
+    assert submitted == ("job-123", "Syntheseauftrag angenommen.", False, "")
+    assert captured == {
+        "items": [
+            ("chapter-one", "Erstes Kapitel".encode("utf-8")),
+            ("chapter-two", "Zweites Kapitel".encode("utf-8")),
+        ],
+        "voice": "test-voice",
+        "language": "de",
+        "output_format": "wav",
+    }
 
 
 def test_gradio_refresh_reports_invalid_voice_profiles(tmp_path):

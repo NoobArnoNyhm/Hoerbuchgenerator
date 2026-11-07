@@ -90,9 +90,13 @@ def create_ui_callbacks(
                 encoded = await asyncio.to_thread(path.read_bytes)
                 offset = [0]
 
-                async def read_file(size: int, content=encoded) -> bytes:
-                    chunk = content[offset[0]:offset[0] + size]
-                    offset[0] += len(chunk)
+                async def read_file(
+                    size: int,
+                    content=encoded,
+                    position=offset,
+                ) -> bytes:
+                    chunk = content[position[0]:position[0] + size]
+                    position[0] += len(chunk)
                     return chunk
 
                 items.append((path.stem, read_file))
