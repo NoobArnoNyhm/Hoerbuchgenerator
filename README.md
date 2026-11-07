@@ -49,7 +49,9 @@ Der Prototyp ist deshalb weder als fertige Anwendung noch fuer den
 Offline-Abnahmebetrieb geeignet. Den Umsetzungstand und offene Pruefungen
 enthaelt [Zukunft/Fortschritt.md](Zukunft/Fortschritt.md).
 
-Der faster-whisper-Adapter ist optional und laedt ausschliesslich vollstaendige
-Modellverzeichnisse aus einem lokalen Pfad. Die Modellabhaengigkeit kann fuer
-Adapterentwicklung mit `python -m pip install -e ".[whisper]"` installiert
-werden; Modelldownload und Anwendungsintegration stehen noch aus.
+Die faster-whisper- und Qwen-Adapter sind optionale Extras und laden nur
+ausgewaehlte, vollstaendige Modellverzeichnisse aus lokalen Pfaden. Die
+Abhaengigkeiten koennen fuer Adapterentwicklung mit
+`python -m pip install -e ".[whisper,qwen]"` installiert werden.
+Qwen-Prompts werden als NPZ-Datei ohne Pickle gespeichert. Modelldownload,
+Hardware-Smoke-Test und Integration in die Anwendungsablaeufe stehen noch aus.

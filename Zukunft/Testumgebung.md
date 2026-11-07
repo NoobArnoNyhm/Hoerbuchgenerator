@@ -44,7 +44,7 @@ docker compose -f compose.test.yaml run --rm --entrypoint bash test
 ## Verifizierter Lauf
 
 Am 2026-11-07 wurde das Image gebaut und die komplette Testsuite im Container
-ausgefuehrt: **33 bestanden**. Der FFmpeg-/FFprobe-Integrationstest lief dabei
+ausgefuehrt: **40 bestanden**. Der FFmpeg-/FFprobe-Integrationstest lief dabei
 mit. Es gab eine nicht blockierende Starlette-Deprecation-Warnung.
 
 ## Aufbau

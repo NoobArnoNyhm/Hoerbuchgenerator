@@ -22,6 +22,11 @@
   Modellverzeichnisse angelegt. Wortzeitstempel/VAD, erkannter Sprachcode und
   Sprachwahrscheinlichkeit werden uebernommen; danach wird das ausgewaehlte
   Referenzsample nochmals transkribiert.
+- Optionalen Qwen3-TTS-Adapter fuer die beiden Base-Modelle angelegt; lokale
+  Ladepfade, `local_files_only` und temporaerer Hugging-Face-Offline-Modus sind
+  erzwungen. Prompttensoren werden atomar und versionsgebunden als NPZ mit
+  JSON-Metadaten gespeichert, ohne Pickle, und beim Laden auf das Modellgeraet
+  uebertragen.
 - Tests fuer API-Status, Gradio-Mount, Verzeichnisse, Job-Konkurrenz, Slugs und
   Textaufteilung angelegt; Audio-Unit- und optionale FFmpeg-Integrationstests
   ergaenzt.
@@ -40,24 +45,21 @@
 - Docker Compose Konfiguration: bestanden.
 - Testimage auf Python 3.12 mit Gradio 5.50.0 gebaut; FFmpeg/FFprobe sind im
   Container vorhanden.
-- Nach Whisper-Adapter-Ergaenzung: **33 bestanden** mit Fake-Modelltests fuer
-  Wortzeitstempel, Sample-Neutranskription und Ablehnung fehlender/lokaler
-  Modelle sowie FFmpeg-Normalisierung/Ausschnitt. Eine nicht blockierende
-  Starlette-Deprecation-Warnung bleibt. Modellgewichte selbst wurden nicht
-  geladen.
+- Nach Whisper- und Qwen-Adapter-Ergaenzung: **40 bestanden** mit Fake-Modell-
+  und Prompt-Roundtrip-Tests, Offline-Ladepruefung und FFmpeg-Integration.
+  Eine nicht blockierende Starlette-Deprecation-Warnung bleibt. Echte
+  Modellgewichte wurden nicht geladen.
 - Gradio-Mount wird im Integrationstest geprueft; UI im Browser und
   Audio-Upload/-Wiedergabe mit echten Modellablaeufen sind noch nicht geprueft.
-- Qwen-Prompt-Objekte werden in den offiziellen Beispielen im Arbeitsspeicher
-  wiederverwendet; ein offizielles persistierbares Format fuer
-  `voice-prompt.pt` ist nicht belegt.
-- Qwen-Kompatibilitaet, Whisper-Inferenz mit echten Gewichten, CUDA/VRAM,
-  Worker-Abbruch und Modellneustart sind nicht auf Zielhardware geprueft. Es
-  gibt noch keinen Modell-Downloadschritt oder UI-/API-Integration.
+- Qwen-Kompatibilitaet, Prompt-Roundtrip mit echten Tensoren, Whisper-Inferenz
+  mit echten Gewichten, CUDA/VRAM, Worker-Abbruch und Modellneustart sind nicht
+  auf Zielhardware geprueft. Es gibt noch keinen Modell-Downloadschritt oder
+  UI-/API-Integration.
 
 ### Naechste Schritte
 
-1. Qwen-Abhaengigkeits- und Prompt-Persistenz-Prototyp sowie
-  faster-whisper-CPU-Prototyp auf Zielhardware verifizieren.
+1. Qwen- und faster-whisper-Adapter mit echten lokalen Modellgewichten und
+  Zielhardware verifizieren; Ladezeit, Ressourcen und Prompt-Roundtrip messen.
 2. Whisper-Adapter an Upload-/Stimmenablauf anbinden; Sprache,
   Segmentfehler sowie kurze/noisy Referenzen pruefen.
 3. Implementieren: Konfiguration, Worker-Prozess, Stimmenpersistenz und echte
