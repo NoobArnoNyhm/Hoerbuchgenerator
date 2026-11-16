@@ -1,5 +1,54 @@
 # Umsetzungsfortschritt
 
+## 2026-11-16
+
+### Erledigt
+
+- GPU-Runtime mit dem vorhandenen Image und lokalen Modellen gestartet. Auf
+  der RTX 3080 Laptop GPU meldeten Healthcheck und `GET /api/v1/status` nach
+  dem Modellstart `ready` mit Qwen 0.6B und Whisper `base`.
+- `/ui` im Browser geoeffnet; Statusanzeige und Stimmenauswahl wurden geladen.
+- Die bereitgestellte 17,2-s-MP3-Referenz ueber die UI hochgeladen. Die
+  Stimmerstellung war erfolgreich; das Profil wurde veroeffentlicht und das
+  6,72-s-Beispielaudio in der UI angezeigt.
+- Einen deutschsprachigen Mehrabsatztext mit 1.618 Zeichen ueber die UI in
+  18 Chunks als WAV und MP3 synthetisiert. Beide Ausgaben wurden ueber die
+  Downloadroute mit HTTP 200 abgerufen. FFprobe bestaetigte WAV/PCM-Mono und
+  MP3, jeweils mit 24 kHz; die Laufzeiten betrugen 112,54 bzw. 115,15 s.
+  Der MP3-Player startete die Wiedergabe im Browser.
+- Die bereitgestellte 48,67-s-MP3 ueber die API verarbeitet. Whisper erkannte
+  Deutsch mit Wahrscheinlichkeit 0,997; der gespeicherte Referenzausschnitt
+  reicht von 1,4 bis 31,4 s und ist damit genau 30 s lang. Das Profilbeispiel
+  ist 6,4 s lang, PCM-Mono mit 24 kHz.
+- Mit diesem Profil denselben 1.618-Zeichen-Text in 18 Chunks als MP3
+  synthetisiert. Der Auftrag wurde erfolgreich abgeschlossen; die 102,67-s-
+  Ausgabe hat 818.732 Bytes, ist Mono mit 24 kHz und die Downloadroute liefert
+  HTTP 200 (`data/output/abnahme_langreferenz.mp3`).
+- Den vorbereiteten 1.618-Zeichen-Auftrag mit `Teststimme Langreferenz (de)`
+  ueber die UI als WAV abgesendet. Alle 18 Chunks wurden erfolgreich
+  synthetisiert; die UI-Ausgabe `ui_langreferenz_wav.wav` ist 103,18 s lang,
+  PCM-Mono mit 24 kHz und 16 Bit. Die Downloadroute lieferte HTTP 200 und
+  4.952.684 Bytes; der API-Status kehrte auf `ready` zurueck.
+- Bei der Browserpruefung fiel auf, dass Boolesche Callback-Rueckgaben den
+  Buttontext auf `False` setzten. Die Rueckgaben verwenden jetzt
+  `gr.update(interactive=...)`; die gezielten API-/UI-Regressionstests
+  bestanden mit **16 Tests**. Der Runtime-Container wurde mit der Korrektur
+  neu gebaut und die UI zeigte danach wieder den unveraenderten Buttontext.
+
+### Noch offen
+
+- Die 17,2-s-Referenz lag unter der Ziellaenge; die separate 48,67-s-Referenz
+  bestaetigte jedoch die Auswahl eines 30-s-Ausschnitts. Hoerqualitaet und
+  Uebereinstimmung mit der Referenz wurden nicht subjektiv bewertet.
+- Frische Modellinitialisierung, Offline-Abnahme und Upgradeprobe aus Etappe 7
+  stehen weiterhin aus.
+
+### Naechste Schritte
+
+1. Hoerqualitaet und Referenztreue der erstellten Ausgaben pruefen.
+2. Etappe 7 mit frischer Modellinitialisierung, Offline-Abnahme und
+   Upgradeprobe abschliessen.
+
 ## 2026-11-07
 
 ### Erledigt

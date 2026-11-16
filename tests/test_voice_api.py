@@ -6,6 +6,7 @@ from threading import Event
 from types import SimpleNamespace
 import wave
 
+import gradio as gr
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -211,20 +212,24 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
     async def submit_and_refresh():
         submitted = await ui.fns[0].fn(str(audio_path), "Teststimme")
         await asyncio.gather(*tuple(app.state.background_tasks))
-        refreshed = await ui.fns[2].fn(submitted[0], submitted[3], None)
+        refreshed = await ui.fns[2].fn(submitted[0], None, None, {})
         return submitted, refreshed
 
     submitted, refreshed = asyncio.run(submit_and_refresh())
 
     assert submitted[1] == "Stimmenauftrag angenommen."
-    assert submitted[2] is False
+    assert submitted[2] == gr.update(interactive=False)
+    assert submitted[3] == gr.update(interactive=False)
     assert refreshed[0] == submitted[0]
-    assert "Stimme **Teststimme** wurde erstellt." in refreshed[1]
-    assert refreshed[2] == str(tmp_path / "voices" / "test-voice" / "example.wav")
-    assert refreshed[3]["interactive"] is True
-    assert refreshed[4]["interactive"] is False
-    assert refreshed[5]["choices"] == [("Teststimme (de)", "test-voice")]
-    assert refreshed[5]["value"] == "test-voice"
+    assert "Stimme **Teststimme** wurde erstellt." in refreshed[2]
+    assert refreshed[4] == str(tmp_path / "voices" / "test-voice" / "example.wav")
+    assert refreshed[5]["interactive"] is True
+    assert refreshed[6]["interactive"] is False
+    assert refreshed[7]["interactive"] is True
+    assert refreshed[8]["choices"] == [("Teststimme (de)", "test-voice")]
+    assert refreshed[8]["value"] == "test-voice"
+    assert refreshed[9]["choices"] == refreshed[8]["choices"]
+    assert refreshed[9]["value"] == refreshed[8]["value"]
 
     create_voice_profile(
         tmp_path / "voices",
@@ -232,14 +237,30 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
         name="Another voice",
     )
     refreshed_again = asyncio.run(
-        ui.fns[2].fn(submitted[0], refreshed[6], refreshed[5]["value"])
+        ui.fns[2].fn(
+            submitted[0],
+            refreshed[8]["value"],
+            refreshed[9]["value"],
+            refreshed[10],
+        )
     )
 
-    assert refreshed_again[5]["choices"] == [
+    assert refreshed_again[8]["choices"] == [
         ("Another voice (de)", "another-voice"),
         ("Teststimme (de)", "test-voice"),
     ]
-    assert refreshed_again[5]["value"] == "test-voice"
+    assert refreshed_again[8]["value"] == "test-voice"
+    assert refreshed_again[9]["choices"] == refreshed_again[8]["choices"]
+    assert refreshed_again[9]["value"] == "test-voice"
+    unchanged = asyncio.run(
+        ui.fns[2].fn(
+            submitted[0],
+            refreshed_again[8]["value"],
+            refreshed_again[9]["value"],
+            refreshed_again[10],
+        )
+    )
+    assert unchanged == (gr.skip(),) * len(unchanged)
 
     load_example = next(
         function.fn
@@ -260,6 +281,70 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
     assert load_example("removed-voice") is None
 
 
+def test_gradio_separates_synthesis_views_and_shares_top_status(tmp_path):
+    app = create_app(tmp_path)
+    ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
+    config = ui.get_config_file()
+    components = {component["id"]: component for component in config["components"]}
+    tabs = next(
+        component for component in config["components"]
+        if component["type"] == "tabs"
+    )
+    tabs_node = next(
+        node for node in config["layout"]["children"]
+        if node["id"] == tabs["id"]
+    )
+    tab_components = [components[child["id"]] for child in tabs_node["children"]]
+
+    def descendant_ids(node):
+        ids = {node["id"]}
+        for child in node.get("children", []):
+            ids.update(descendant_ids(child))
+        return ids
+
+    assert [tab["props"]["label"] for tab in tab_components] == [
+        "Stimmsynthese",
+        "Sprachsynthese",
+    ]
+    voice_tab_ids = descendant_ids(tabs_node["children"][0])
+    synthesis_tab_ids = descendant_ids(tabs_node["children"][1])
+    voice_labels = {
+        components[component_id]["props"].get("label")
+        for component_id in voice_tab_ids
+    }
+    synthesis_labels = {
+        components[component_id]["props"].get("label")
+        for component_id in synthesis_tab_ids
+    }
+    assert {
+        "Stimmenname",
+        "Referenzaufnahme (WAV oder MP3)",
+        "Vorhandene Stimme",
+        "Beispielaudio",
+    } <= voice_labels
+    assert {
+        "Text",
+        "Ausgabename (bei direkter Texteingabe)",
+        "TXT-Dateien (optional)",
+        "Stimme",
+        "Sprache",
+        "Ausgabeformat",
+    } <= synthesis_labels
+    status = next(
+        component for component in components.values()
+        if component["type"] == "markdown"
+        and component["props"].get("value")
+        == "Modelle und Auftragsstatus werden geladen ..."
+    )
+    status_row = next(
+        node for node in config["layout"]["children"]
+        if any(child["id"] == status["id"] for child in node.get("children", []))
+    )
+    assert status["id"] not in descendant_ids(tabs_node)
+    root_child_ids = [child["id"] for child in config["layout"]["children"]]
+    assert root_child_ids.index(status_row["id"]) < root_child_ids.index(tabs["id"])
+
+
 def test_gradio_synthesis_requires_selected_voice(tmp_path):
     app = create_app(tmp_path, FakeVoiceProfiles())
     ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
@@ -271,8 +356,8 @@ def test_gradio_synthesis_requires_selected_voice(tmp_path):
     assert submitted == (
         "",
         "Bitte eine Stimme auswaehlen.",
-        True,
-        "Bitte eine Stimme auswaehlen.",
+        gr.skip(),
+        gr.skip(),
     )
 
 
@@ -306,8 +391,8 @@ def test_gradio_synthesis_rejects_text_over_byte_limit(tmp_path):
     assert submitted == (
         "",
         "Die Texteingabe ueberschreitet das Uploadlimit.",
-        True,
-        "Die Texteingabe ueberschreitet das Uploadlimit.",
+        gr.skip(),
+        gr.skip(),
     )
 
 
@@ -340,7 +425,7 @@ def test_gradio_synthesis_rejects_too_many_files_before_reading(tmp_path):
         "gleichzeitig verarbeitet werden."
     )
 
-    assert submitted == ("", message, True, message)
+    assert submitted == ("", message, gr.skip(), gr.skip())
 
 
 def test_gradio_synthesis_checks_combined_file_size_before_reading(
@@ -383,7 +468,7 @@ def test_gradio_synthesis_checks_combined_file_size_before_reading(
     )
     message = "Die Textdateien ueberschreiten gemeinsam das Uploadlimit."
 
-    assert submitted == ("", message, True, message)
+    assert submitted == ("", message, gr.skip(), gr.skip())
 
 
 def test_gradio_synthesis_reports_unreadable_text_file(tmp_path):
@@ -415,8 +500,8 @@ def test_gradio_synthesis_reports_unreadable_text_file(tmp_path):
     assert submitted == (
         "",
         "Eine TXT-Datei konnte nicht gelesen werden.",
-        True,
-        "Eine TXT-Datei konnte nicht gelesen werden.",
+        gr.skip(),
+        gr.skip(),
     )
 
 
@@ -465,7 +550,12 @@ def test_gradio_synthesis_preserves_uploaded_file_order_and_content(tmp_path):
         )
     )
 
-    assert submitted == ("job-123", "Syntheseauftrag angenommen.", False, "")
+    assert submitted == (
+        "job-123",
+        "Syntheseauftrag angenommen.",
+        gr.update(interactive=False),
+        gr.update(interactive=False),
+    )
     assert captured == {
         "items": [
             ("chapter-one", "Erstes Kapitel".encode("utf-8")),
@@ -483,11 +573,63 @@ def test_gradio_refresh_reports_invalid_voice_profiles(tmp_path):
     app = create_app(tmp_path)
     ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
 
-    refreshed = asyncio.run(ui.fns[2].fn("", "", None))
+    refreshed = asyncio.run(ui.fns[2].fn("", None, None, {}))
 
-    assert "Stimmenprofil broken-voice ist ungueltig." in refreshed[1]
-    assert refreshed[5]["choices"] == []
-    assert refreshed[5]["value"] is None
+    assert "Stimmenprofil broken-voice ist ungueltig." in refreshed[2]
+    assert refreshed[8]["choices"] == []
+    assert refreshed[8]["value"] is None
+    assert refreshed[9]["choices"] == []
+    assert refreshed[9]["value"] is None
+
+
+def test_gradio_refresh_shows_progress_and_skips_unchanged_updates(tmp_path):
+    app = create_app(tmp_path, FakeVoiceProfiles())
+    ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
+
+    async def refresh_active_job():
+        job = await app.state.jobs.reserve("synthesis")
+        await app.state.jobs.update(
+            job["id"],
+            "synthesizing",
+            total=3,
+            completed=1,
+        )
+        return await ui.fns[2].fn("", None, None, {})
+
+    refreshed = asyncio.run(refresh_active_job())
+
+    assert "1 / 3 Chunks" in refreshed[1]
+    assert "1 von 3 Chunks" in refreshed[3]
+    assert refreshed[5]["interactive"] is False
+    assert refreshed[6]["interactive"] is True
+    assert refreshed[7]["interactive"] is False
+    unchanged = asyncio.run(
+        ui.fns[2].fn(
+            refreshed[0],
+            refreshed[8]["value"],
+            refreshed[9]["value"],
+            refreshed[10],
+        )
+    )
+    assert unchanged == (gr.skip(),) * len(unchanged)
+
+
+def test_gradio_voice_refresh_shows_creation_progress(tmp_path):
+    app = create_app(tmp_path, FakeVoiceProfiles())
+    ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
+
+    async def refresh_active_voice_job():
+        job = await app.state.jobs.reserve("voice")
+        await app.state.jobs.update(
+            job["id"],
+            "creating_voice",
+            total=1,
+        )
+        return await ui.fns[2].fn("", None, None, {})
+
+    refreshed = asyncio.run(refresh_active_voice_job())
+
+    assert "Stimmerstellung laeuft: 0 von 1 Schritten." in refreshed[2]
 
 
 def test_gradio_submission_respects_shared_busy_job_slot(tmp_path):
@@ -504,4 +646,5 @@ def test_gradio_submission_respects_shared_busy_job_slot(tmp_path):
 
     assert submitted[0] == ""
     assert submitted[1] == "Stimme konnte nicht gestartet werden: busy"
-    assert submitted[2] is True
+    assert submitted[2] == gr.skip()
+    assert submitted[3] == gr.skip()
