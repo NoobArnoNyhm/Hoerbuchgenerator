@@ -9,7 +9,8 @@ from uuid import uuid4
 
 import numpy as np
 
-from hoerbuchgenerator.audio import AudioError, TARGET_SAMPLE_RATE, normalize_audio
+from hoerbuchgenerator.audio_ffmpeg import normalize_audio
+from hoerbuchgenerator.audio_types import AudioError, TARGET_SAMPLE_RATE
 from hoerbuchgenerator.naming import make_slug
 from hoerbuchgenerator.text import chunk_text
 from hoerbuchgenerator.voice_profiles import QWEN_LANGUAGES

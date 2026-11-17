@@ -48,10 +48,10 @@ def test_gradio_ui_is_mounted_separately_and_hidden_from_api_schema():
     preview_binding = next(
         dependency
         for dependency in blocks.config["dependencies"]
-        if (component_ids["Stimme"], "change") in dependency["targets"]
+        if (component_ids["Vorhandene Stimme"], "change") in dependency["targets"]
     )
-    assert preview_binding["inputs"] == [component_ids["Stimme"]]
-    assert preview_binding["outputs"] == [component_ids["Sprachbeispiel"]]
+    assert preview_binding["inputs"] == [component_ids["Vorhandene Stimme"]]
+    assert preview_binding["outputs"] == [component_ids["Beispielaudio"]]
     assert "/api/v1/status" in app.openapi()["paths"]
     assert "/api/v1/voices" in app.openapi()["paths"]
     assert "/api/v1/voices/{slug}/example" in app.openapi()["paths"]
@@ -179,7 +179,7 @@ def test_startup_loads_worker_from_complete_local_model_caches(
             self.closed = True
             self.ready = False
 
-    monkeypatch.setattr("hoerbuchgenerator.main.VoiceWorker", FakeWorker)
+    monkeypatch.setattr("hoerbuchgenerator.app_lifecycle.VoiceWorker", FakeWorker)
 
     with TestClient(create_app(tmp_path)) as client:
         response = client.get("/api/v1/status")

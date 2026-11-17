@@ -4,11 +4,11 @@ import shutil
 import tempfile
 from typing import BinaryIO
 
-from hoerbuchgenerator.audio import (
+from hoerbuchgenerator.audio_ffmpeg import normalize_audio
+from hoerbuchgenerator.audio_types import (
     AudioError,
     AudioMetadata,
     MAX_UPLOAD_BYTES,
-    normalize_audio,
 )
 from hoerbuchgenerator.naming import make_slug
 from hoerbuchgenerator.whisper import (

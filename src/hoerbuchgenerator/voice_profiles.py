@@ -11,7 +11,8 @@ import wave
 
 import numpy as np
 
-from hoerbuchgenerator.audio import AudioError, normalize_audio
+from hoerbuchgenerator.audio_ffmpeg import normalize_audio
+from hoerbuchgenerator.audio_types import AudioError
 from hoerbuchgenerator.naming import make_slug
 from hoerbuchgenerator.qwen import QWEN_BASE_MODELS, QwenError, QwenTTSAdapter
 from hoerbuchgenerator.voice_reference import (

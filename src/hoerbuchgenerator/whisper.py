@@ -3,12 +3,12 @@ import math
 from pathlib import Path
 from typing import Protocol
 
-from hoerbuchgenerator.audio import (
+from hoerbuchgenerator.audio_ffmpeg import extract_audio_segment
+from hoerbuchgenerator.audio_reference import select_reference_window
+from hoerbuchgenerator.audio_types import (
     AudioError,
     AudioMetadata,
     WordInterval,
-    extract_audio_segment,
-    select_reference_window,
 )
 from hoerbuchgenerator.model_cache import incomplete_model_files
 

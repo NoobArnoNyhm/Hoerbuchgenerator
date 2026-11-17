@@ -124,6 +124,39 @@ Chunks werden sequenziell synthetisiert, mit EBU-R128-Lautheitsnormalisierung
 auf -20 LUFS (True Peak -2 dBTP) und getesteten Pausen zusammengefuegt und erst
 nach Validierung atomar in `data/output/` veroeffentlicht.
 
+## Modulaufteilung
+
+Der ASGI-Einstieg bleibt `hoerbuchgenerator.main:app`; `create_app` bleibt
+ebenfalls aus `main` importierbar. Die Implementierung ist nach
+Verantwortlichkeiten aufgeteilt:
+
+- [app_factory.py](src/hoerbuchgenerator/app_factory.py) verdrahtet API, UI und
+  Auftragsdienste; [app_lifecycle.py](src/hoerbuchgenerator/app_lifecycle.py)
+  verwaltet Offline-Umgebung, Verzeichnisse und Worker-Lebenszyklus.
+- [voice_jobs.py](src/hoerbuchgenerator/voice_jobs.py) und
+  [synthesis_jobs.py](src/hoerbuchgenerator/synthesis_jobs.py) nehmen Auftraege
+  entgegen und steuern deren Ausfuehrung ueber denselben `JobManager`.
+- [worker.py](src/hoerbuchgenerator/worker.py) steuert den Prozess;
+  [worker_runtime.py](src/hoerbuchgenerator/worker_runtime.py) laedt im
+  Kindprozess die Modelle und verarbeitet Befehle.
+  [worker_synthesizer.py](src/hoerbuchgenerator/worker_synthesizer.py) verbindet
+  die synchrone Synthesepipeline mit der asynchronen Worker-Schnittstelle.
+- [audio_types.py](src/hoerbuchgenerator/audio_types.py) enthaelt gemeinsame
+  Typen und Konstanten, [audio_reference.py](src/hoerbuchgenerator/audio_reference.py)
+  die Referenzfensterwahl und [audio_ffmpeg.py](src/hoerbuchgenerator/audio_ffmpeg.py)
+  die Audioverarbeitung. Bisherige oeffentliche Imports aus `audio` bleiben
+  verfuegbar.
+- [ui.py](src/hoerbuchgenerator/ui.py) baut Layout und Event-Verbindungen auf;
+  [ui_callbacks.py](src/hoerbuchgenerator/ui_callbacks.py) nimmt Eingaben an und
+  [ui_status.py](src/hoerbuchgenerator/ui_status.py) projiziert Status,
+  Stimmenauswahl und Vorschau. `create_ui_callbacks` bleibt aus `ui`
+  importierbar.
+
+Die Abhaengigkeiten zeigen von der App-Komposition zu UI/API und
+Auftragsdiensten, weiter zu Worker bzw. Fachmodulen; die unteren Module
+importieren weder `main` noch die App-Factory. Gemeinsam genutzte Audio-Typen
+haengen nicht von Audioverarbeitung oder Modellen ab.
+
 ## Tests
 
 Empfohlen ist die dokumentierte, isolierte Docker-Testumgebung unter
