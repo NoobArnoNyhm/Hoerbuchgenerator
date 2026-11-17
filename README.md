@@ -8,6 +8,17 @@ denselben Stimmenauftrag und Jobstatus. Qwen und Whisper laufen in einem
 separaten Worker-Prozess. Hoerbuchsynthese ist verfuegbar; automatischer
 Modelldownload erfolgt ueber den separaten Online-Initialisierungsschritt.
 
+## Verantwortung und Einwilligung
+
+Fremde Stimmen duerfen nur mit ausdruecklicher Einwilligung der betroffenen
+Person fuer das Klonen und die beabsichtigte Nutzung verwendet werden.
+Eine Nutzung ohne Einwilligung kann illegal sein und Persoenlichkeitsrechte
+verletzen; eine Nutzung gegen den Willen der betroffenen Person ist moralisch
+hoechst verwerflich. Oeffentlich zugaengliche Aufnahmen sind keine
+Einwilligung. Der Tab **Stimmsynthese** zeigt diesen Hinweis unmittelbar vor
+**Stimme erstellen** an. Eine tatsaechliche Einwilligung wird durch die
+Anwendung nicht technisch geprueft.
+
 ## Docker-Laufzeit
 
 Fuer die GPU-Laufzeit werden Docker Compose v2 und eine von Docker erreichbare
@@ -30,6 +41,15 @@ Telemetrie; automatische Modellabrufe sind im Betrieb damit abgeschaltet.
 Docker blockiert ausgehende Netzwerkverbindungen nicht. Der App-Port wird nur
 an `127.0.0.1:${APP_PORT}` gebunden; der Healthcheck wird nach dem Modellstart
 `healthy`.
+
+Beim App-Start erscheint im Dockerlog zusaetzlich zur Uvicorn-Bind-Adresse
+die Browseradresse `http://127.0.0.1:8000/ui`. Bei abweichendem `APP_PORT`
+zeigt sie den konfigurierten Host-Port an; der Container lauscht intern
+weiterhin auf Port 8000. Die Adresse gilt fuer den Docker-Host, nicht fuer
+Remote-Hosts oder Reverse-Proxys, und ist keine Meldung ueber
+Modellbereitschaft. Bei direktem Uvicorn-Start mit abweichendem Port muss
+`APP_PORT` fuer die Loganzeige passend gesetzt werden; die Variable aendert
+nicht den Uvicorn-Listen-Port.
 
 Der weitere Betrieb erfolgt direkt mit Docker Compose, ohne zusaetzliche
 Skripte:

@@ -330,6 +330,42 @@ def test_gradio_separates_synthesis_views_and_shares_top_status(tmp_path):
         "Sprache",
         "Ausgabeformat",
     } <= synthesis_labels
+    notice = next(
+        components[component_id]
+        for component_id in voice_tab_ids
+        if components[component_id]["type"] == "markdown"
+        and "Keine fremden Stimmen ohne Einwilligung"
+        in components[component_id]["props"].get("value", "")
+    )
+    notice_text = notice["props"]["value"]
+    assert "illegal" in notice_text
+    assert "Persoenlichkeitsrechte" in notice_text
+    assert "moralisch hoechst verwerflich" in notice_text
+    assert "ausdruecklich zugestimmt" in notice_text
+    assert "Oeffentlich zugaengliche Aufnahmen sind keine Einwilligung" in notice_text
+    name_field = next(
+        component_id for component_id in voice_tab_ids
+        if components[component_id]["props"].get("label") == "Stimmenname"
+    )
+    create_button = next(
+        component_id for component_id in voice_tab_ids
+        if components[component_id]["type"] == "button"
+        and components[component_id]["props"].get("value") == "Stimme erstellen"
+    )
+    voice_children = tabs_node["children"][0]["children"]
+
+    def voice_child_index(component_id):
+        return next(
+            index for index, child in enumerate(voice_children)
+            if component_id in descendant_ids(child)
+        )
+
+    assert voice_child_index(name_field) < voice_child_index(notice["id"])
+    assert voice_child_index(notice["id"]) < voice_child_index(create_button)
+    assert all(
+        notice["id"] not in dependency["inputs"] + dependency["outputs"]
+        for dependency in config["dependencies"]
+    )
     status = next(
         component for component in components.values()
         if component["type"] == "markdown"

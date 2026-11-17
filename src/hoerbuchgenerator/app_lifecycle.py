@@ -120,6 +120,10 @@ def create_lifespan(root: Path):
                         whisper_path,
                     )
             try:
+                logging.getLogger("uvicorn.error").info(
+                    "Weboberflaeche: http://127.0.0.1:%s/ui",
+                    os.environ.get("APP_PORT") or "8000",
+                )
                 yield
             finally:
                 active_job = await application.state.jobs.active()

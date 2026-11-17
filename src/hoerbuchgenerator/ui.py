@@ -36,6 +36,16 @@ def create_ui(
                         file_types=[".wav", ".mp3"],
                         type="filepath",
                     )
+                gr.Markdown(
+                    "**Achtung: Keine fremden Stimmen ohne Einwilligung verwenden!**\n\n"
+                    "Das Klonen und Verwenden einer fremden Stimme ohne Einwilligung "
+                    "kann illegal sein und Persoenlichkeitsrechte verletzen. "
+                    "Die Nutzung gegen den Willen der betroffenen Person ist "
+                    "moralisch hoechst verwerflich. Verwende ausschliesslich deine "
+                    "eigene Stimme oder Stimmen von Personen, die dem Klonen und "
+                    "der beabsichtigten Nutzung ausdruecklich zugestimmt haben. "
+                    "Oeffentlich zugaengliche Aufnahmen sind keine Einwilligung."
+                )
                 create_button = gr.Button("Stimme erstellen", variant="primary")
                 voice_status = gr.Markdown("Noch kein Stimmsyntheseauftrag.")
                 gr.Markdown("### Vorhandene Stimmen")

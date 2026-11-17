@@ -1,3 +1,4 @@
+import logging
 import os
 
 import pytest
@@ -18,6 +19,26 @@ def test_status_is_versioned_and_does_not_claim_models_are_loaded(tmp_path):
         "active_job": None,
         "models": {"qwen": None, "whisper": None},
     }
+
+
+@pytest.mark.parametrize("port", [None, "8123"])
+def test_startup_logs_ui_host_address_once(tmp_path, monkeypatch, caplog, port):
+    if port is None:
+        monkeypatch.delenv("APP_PORT", raising=False)
+    else:
+        monkeypatch.setenv("APP_PORT", port)
+    caplog.set_level(logging.INFO, logger="uvicorn.error")
+
+    with TestClient(create_app(tmp_path)) as client:
+        for _ in range(2):
+            assert client.get("/api/v1/status").json()["state"] == "not_initialized"
+
+    assert [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "uvicorn.error"
+        and record.getMessage().startswith("Weboberflaeche:")
+    ] == [f"Weboberflaeche: http://127.0.0.1:{port or '8000'}/ui"]
 
 
 def test_gradio_ui_is_mounted_separately_and_hidden_from_api_schema():
@@ -252,12 +273,19 @@ def test_runtime_enforces_offline_model_loading_and_restores_environment(
 def test_startup_rejects_unsupported_model_selection(
     tmp_path,
     monkeypatch,
+    caplog,
     variable,
     value,
     message,
 ):
     monkeypatch.setenv(variable, value)
+    caplog.set_level(logging.INFO, logger="uvicorn.error")
 
     with pytest.raises(RuntimeError, match=message):
         with TestClient(create_app(tmp_path)):
             pass
+
+    assert not any(
+        record.getMessage().startswith("Weboberflaeche:")
+        for record in caplog.records
+    )
