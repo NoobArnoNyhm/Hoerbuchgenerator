@@ -21,8 +21,8 @@ Modellzugriff. Modell-Downloads sind fuer die Tests nicht erforderlich.
 Im Repository-Verzeichnis:
 
 ```powershell
-docker compose -f compose.test.yaml build
-docker compose -f compose.test.yaml run --rm test
+docker compose -f Testumgbung/compose.test.yaml build
+docker compose -f Testumgbung/compose.test.yaml run --rm test
 ```
 
 Das funktioniert mit denselben Befehlen in PowerShell und einer Linux-Shell.
@@ -32,13 +32,13 @@ werden durch den Bind-Mount direkt aus dem Arbeitsverzeichnis gelesen.
 Einen einzelnen Test ausfuehren:
 
 ```powershell
-docker compose -f compose.test.yaml run --rm test python -m pytest -q tests/test_audio.py
+docker compose -f Testumgbung/compose.test.yaml run --rm test python -m pytest -q tests/test_audio.py
 ```
 
 Eine Shell im Testcontainer oeffnen:
 
 ```powershell
-docker compose -f compose.test.yaml run --rm --entrypoint bash test
+docker compose -f Testumgbung/compose.test.yaml run --rm --entrypoint bash test
 ```
 
 ## Verifizierter Lauf

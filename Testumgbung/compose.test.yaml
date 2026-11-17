@@ -1,12 +1,12 @@
 services:
   test:
     build:
-      context: .
-      dockerfile: Dockerfile.test
+      context: ..
+      dockerfile: Testumgbung/Dockerfile.test
     working_dir: /workspace
     volumes:
       - type: bind
-        source: .
+        source: ..
         target: /workspace
     environment:
       APP_DATA_DIR: /tmp/hoerbuchgenerator-test-data

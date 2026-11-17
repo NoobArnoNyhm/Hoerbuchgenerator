@@ -127,12 +127,12 @@ nach Validierung atomar in `data/output/` veroeffentlicht.
 ## Tests
 
 Empfohlen ist die dokumentierte, isolierte Docker-Testumgebung unter
-[Zukunft/Testumgebung.md](Zukunft/Testumgebung.md). Das Repository wird dort
+[Testumgbung/Testumgebung.md](Testumgbung/Testumgebung.md). Das Repository wird dort
 als Volume unter `/workspace` eingebunden:
 
 ```powershell
-docker compose -f compose.test.yaml build
-docker compose -f compose.test.yaml run --rm test
+docker compose -f Testumgbung/compose.test.yaml build
+docker compose -f Testumgbung/compose.test.yaml run --rm test
 ```
 
 Alternativ lokal mit Python:
