@@ -144,6 +144,63 @@ Chunks werden sequenziell synthetisiert, mit EBU-R128-Lautheitsnormalisierung
 auf -20 LUFS (True Peak -2 dBTP) und getesteten Pausen zusammengefuegt und erst
 nach Validierung atomar in `data/output/` veroeffentlicht.
 
+## Hoerbuchbestand
+
+Unten im Tab **Sprachsynthese** zeigt **Erstellte Hoerbuecher** alle regulaeren
+WAV-/MP3-Dateien direkt aus `data/output/`, einschliesslich vorhandener und
+extern hinzugefuegter Dateien. Grossschreibung, Leerzeichen und Umlaute werden
+unterstuetzt. Unterverzeichnisse, versteckte Zwischendateien und symbolische
+Links werden nicht angezeigt oder ueber die Output-API bereitgestellt.
+
+Die neueste Ausgabe steht oben. Ein atomar geschriebener Katalog unter
+`data/config/output-catalog.json` speichert die Veroeffentlichungsreihenfolge.
+Beim ersten Einlesen vorhandener Dateien gilt deren Erstellungszeit, soweit
+das Dateisystem sie bereitstellt, sonst einmalig deren Aenderungszeit als
+Naeherung. Linux-`ctime` wird nicht als Erstellungszeit verwendet. Spaetere
+Aenderungen und Neustarts aendern diese uebernommene Reihenfolge nicht.
+Den Katalog zusammen mit den Ausgaben sichern; unlesbare Kataloge werden
+ausdruecklich als Fehler gemeldet und nicht still ersetzt.
+
+Jede Zeile hat einen Audioplayer, **Herunterladen** und **Loeschen**.
+Die Player laden Medien erst bei Bedarf direkt ueber die Output-API, ohne
+zusaetzliche Gradio-Audiokopie. Der vorhandene Zwei-Sekunden-Timer gleicht
+den Bestand ab; neue Bulk-Teilergebnisse erscheinen bereits waehrend eines
+laufenden Auftrags. Unveraenderte Player bleiben beim Einfuegen oder Entfernen
+anderer Zeilen erhalten. Wiedergabe, Download und Loeschen belegen keinen
+Inferenz-Auftragsslot.
+
+**Loeschen ist unwiderruflich.** Der Pflichtdialog nennt genau eine Datei;
+erst **Endgueltig loeschen** entfernt sie tatsaechlich aus Output.
+**Abbrechen** oder Escape schliesst den Dialog ohne Loeschung.
+Es gibt keine Mehrfachauswahl oder Sammelloeschung. Eine zwischenzeitlich
+ersetzte Datei muss neu ausgewaehlt und bestaetigt werden. Nach erfolgreicher
+Loeschung wird sofort aktualisiert, in anderen Sitzungen beim naechsten
+Abgleich. Bereits heruntergeladene oder im Browser gepufferte Bytes koennen
+nicht zurueckgerufen werden.
+
+Output-API:
+
+- `GET /api/v1/output` liefert `{"files": [...]}` mit `name`, `format`,
+  `created_at` (UTC), `version` und lokaler `url`, neueste zuerst.
+- `GET /api/v1/output/{name}` unterstuetzt Download und HTTP-Range fuer
+  Wiedergabe/Seeking; Dateinamen URL-kodieren. Die gelistete URL enthaelt
+  zusaetzlich die Version, damit sie nach einem Dateiaustausch nicht
+  unbemerkt auf ein anderes Hoerbuch zeigt. Medienantworten sind `no-store`.
+- `DELETE /api/v1/output/{name}` erfordert `If-Match: "<version>"`.
+  Erfolg: HTTP 204; fehlende Version: 428; geaenderte Version: 412;
+  fehlende/unerlaubte Datei: 404 (`output_not_found`).
+- Dateisystem-/Katalogfehler liefern 5xx mit Fehlercode und Meldung; die
+  Ursache steht im Log. Falls nach der Dateientfernung nur das Schreiben des
+  Katalogs scheitert, wird dies ausdruecklich gemeldet; der naechste
+  erfolgreiche Abgleich bereinigt den verwaisten Katalogeintrag.
+
+Veroeffentlichung, Versionspruefung und Loeschung sind innerhalb des einen
+App-Prozesses gemeinsam gesperrt. Externe Programme und mehrere unabhaengige
+App-Prozesse auf demselben Datenverzeichnis werden dadurch nicht gesperrt.
+Externe Dateien werden anhand ihrer Dateisystemkennung erkannt. Wird eine
+Kennung zwischen zwei Abgleichen wiederverwendet, ist eine Neuerstellung
+nicht zuverlaessig von einer Aenderung der alten Datei unterscheidbar.
+
 ## Modulaufteilung
 
 Der ASGI-Einstieg bleibt `hoerbuchgenerator.main:app`; `create_app` bleibt
@@ -171,6 +228,13 @@ Verantwortlichkeiten aufgeteilt:
   [ui_status.py](src/hoerbuchgenerator/ui_status.py) projiziert Status,
   Stimmenauswahl und Vorschau. `create_ui_callbacks` bleibt aus `ui`
   importierbar.
+- [output_catalog.py](src/hoerbuchgenerator/output_catalog.py) verwaltet
+  Bestand, Zeitpunkte, Dateiversionen und koordinierte Veroeffentlichung/
+  Loeschung; [output_api.py](src/hoerbuchgenerator/output_api.py) stellt die
+  gemeinsamen REST-Routen bereit.
+- [ui_outputs.py](src/hoerbuchgenerator/ui_outputs.py) bindet das
+  Bestandslayout ein; [output_library.js](src/hoerbuchgenerator/static/output_library.js)
+  erhaelt unveraenderte Player und steuert den einzelnen Pflichtdialog.
 
 Die Abhaengigkeiten zeigen von der App-Komposition zu UI/API und
 Auftragsdiensten, weiter zu Worker bzw. Fachmodulen; die unteren Module

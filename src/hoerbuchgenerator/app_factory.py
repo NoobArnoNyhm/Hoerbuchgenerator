@@ -7,6 +7,8 @@ from fastapi import FastAPI
 from hoerbuchgenerator.api import register_api_routes
 from hoerbuchgenerator.app_lifecycle import create_lifespan
 from hoerbuchgenerator.jobs import JobManager
+from hoerbuchgenerator.output_api import register_output_routes
+from hoerbuchgenerator.output_catalog import OutputCatalog
 from hoerbuchgenerator.synthesis_jobs import create_synthesis_job_handler
 from hoerbuchgenerator.ui import create_ui, create_ui_callbacks
 from hoerbuchgenerator.voice_jobs import create_voice_job_handler
@@ -24,6 +26,7 @@ def create_app(
         lifespan=create_lifespan(root),
     )
     app.state.jobs = JobManager()
+    app.state.outputs = OutputCatalog(root)
     app.state.voice_profiles = voice_profiles
     app.state.voice_worker = None
     app.state.voice_available = voice_profiles is not None
@@ -58,6 +61,7 @@ def create_app(
         accept_synthesis,
         voice_service_available,
     )
+    register_output_routes(app, app.state.outputs)
 
     ui = create_ui(
         submit_voice_ui,

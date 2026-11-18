@@ -7,7 +7,7 @@ import wave
 from fastapi.testclient import TestClient
 
 from hoerbuchgenerator.main import create_app
-from hoerbuchgenerator.worker import VoiceWorkerCommandError
+from hoerbuchgenerator.worker import VoiceWorkerCancelled, VoiceWorkerCommandError
 
 
 class FakeSynthesisWorker:
@@ -74,6 +74,9 @@ def test_text_api_synthesizes_and_downloads_result(tmp_path):
         assert downloaded.status_code == 200
         assert downloaded.headers["content-type"] == "audio/wav"
         assert client.get("/api/v1/output/../../README.md").status_code == 404
+        catalog = client.get("/api/v1/output").json()["files"]
+        assert [item["name"] for item in catalog] == ["chapter_one.wav"]
+        assert (tmp_path / "config" / "output-catalog.json").is_file()
 
 
 def test_file_api_processes_multiple_text_files_sequentially(tmp_path):
@@ -89,6 +92,9 @@ def test_file_api_processes_multiple_text_files_sequentially(tmp_path):
 
         assert accepted.status_code == 202
         job = wait_for_job(client, accepted.json()["id"])
+        assert [
+            item["name"] for item in client.get("/api/v1/output").json()["files"]
+        ] == ["second.wav", "first.wav"]
 
     assert job["state"] == "completed", job
     assert [item["name"] for item in job["result"]["files"]] == [
@@ -164,15 +170,60 @@ def test_bulk_synthesis_keeps_completed_files_when_one_file_fails(tmp_path):
             "/api/v1/synthesis/files",
             data={"voice": "test_voice", "format": "wav"},
             files=[
-                ("files", ("broken.txt", b"FAIL this file.", "text/plain")),
                 ("files", ("good.txt", b"Successful chapter text.", "text/plain")),
+                ("files", ("broken.txt", b"FAIL this file.", "text/plain")),
             ],
         )
         assert accepted.status_code == 202
         job = wait_for_job(client, accepted.json()["id"])
+        assert [
+            item["name"] for item in client.get("/api/v1/output").json()["files"]
+        ] == ["good.wav"]
 
     assert job["state"] == "completed", job
     assert [item["state"] for item in job["result"]["files"]] == [
-        "failed",
         "completed",
+        "failed",
     ]
+
+
+def test_bulk_publishes_first_file_while_running_and_keeps_it_after_cancel(tmp_path):
+    class PausedSecondWorker(FakeSynthesisWorker):
+        def __init__(self):
+            super().__init__()
+            self.started = threading.Event()
+            self.release = threading.Event()
+
+        async def execute(self, command, cancel_event):
+            if command["text"].startswith("Second"):
+                self.started.set()
+                await asyncio.to_thread(self.release.wait, 10)
+                if cancel_event.is_set():
+                    raise VoiceWorkerCancelled()
+            return await super().execute(command, cancel_event)
+
+    worker = PausedSecondWorker()
+    client = create_client(tmp_path)
+    client.app.state.voice_worker = worker
+    try:
+        with client:
+            accepted = client.post(
+                "/api/v1/synthesis/files",
+                data={"voice": "test_voice", "format": "wav"},
+                files=[
+                    ("files", ("first.txt", b"First chapter.", "text/plain")),
+                    ("files", ("second.txt", b"Second chapter.", "text/plain")),
+                ],
+            )
+            job_id = accepted.json()["id"]
+            assert worker.started.wait(10)
+            assert client.get(f"/api/v1/jobs/{job_id}").json()["state"] == "running"
+            files = client.get("/api/v1/output").json()["files"]
+            assert [item["name"] for item in files] == ["first.wav"]
+            assert client.get(files[0]["url"]).status_code == 200
+            assert client.post(f"/api/v1/jobs/{job_id}/cancel").status_code == 200
+            worker.release.set()
+            assert wait_for_job(client, job_id)["state"] == "cancelled"
+            assert client.get("/api/v1/output").json()["files"] == files
+    finally:
+        worker.release.set()

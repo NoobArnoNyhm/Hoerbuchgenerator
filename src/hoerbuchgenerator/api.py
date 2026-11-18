@@ -147,23 +147,6 @@ def register_api_routes(
                 await upload.close()
         return JSONResponse(status_code=202, content=accepted)
 
-    @app.get("/api/v1/output/{name}", tags=["output"])
-    async def download_output(name: str) -> FileResponse:
-        if (
-            Path(name).name != name
-            or "\\" in name
-            or re.fullmatch(
-                r"[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?\.(?:wav|mp3)",
-                name,
-            ) is None
-        ):
-            raise HTTPException(status_code=404, detail={"code": "output_not_found"})
-        output_path = root / "output" / name
-        if not output_path.is_file():
-            raise HTTPException(status_code=404, detail={"code": "output_not_found"})
-        media_type = "audio/wav" if name.endswith(".wav") else "audio/mpeg"
-        return FileResponse(output_path, media_type=media_type, filename=name)
-
     @app.post("/api/v1/jobs/{job_id}/cancel", tags=["jobs"])
     async def cancel_job(job_id: str) -> dict[str, object]:
         job = await app.state.jobs.request_cancel(job_id)

@@ -4,6 +4,7 @@ from typing import Any
 import gradio as gr
 
 from hoerbuchgenerator.ui_callbacks import create_ui_callbacks as create_ui_callbacks
+from hoerbuchgenerator.ui_outputs import OUTPUT_LIBRARY_HTML, OUTPUT_LIBRARY_REFRESH_JS
 from hoerbuchgenerator.voice_profiles import QWEN_LANGUAGES
 
 
@@ -92,6 +93,7 @@ def create_ui(
                     variant="primary",
                 )
                 synthesis_status = gr.Markdown("Noch kein Sprachsyntheseauftrag.")
+                gr.HTML(OUTPUT_LIBRARY_HTML, padding=False)
         timer = gr.Timer(2)
         create_button.click(
             submit_voice,
@@ -159,6 +161,8 @@ def create_ui(
             inputs=[preview_voice],
             outputs=[example],
         )
+        ui.load(fn=None, js=OUTPUT_LIBRARY_REFRESH_JS)
+        timer.tick(fn=None, js=OUTPUT_LIBRARY_REFRESH_JS)
     ui.queue(api_open=False)
     ui.run_history = False
     return ui

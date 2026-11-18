@@ -12,6 +12,7 @@ import numpy as np
 from hoerbuchgenerator.audio_ffmpeg import normalize_audio
 from hoerbuchgenerator.audio_types import AudioError, TARGET_SAMPLE_RATE
 from hoerbuchgenerator.naming import make_slug
+from hoerbuchgenerator.output_catalog import OutputError
 from hoerbuchgenerator.text import chunk_text
 from hoerbuchgenerator.voice_profiles import QWEN_LANGUAGES
 
@@ -147,6 +148,7 @@ def synthesize_file(
     cancel_check: Callable[[], bool] = lambda: False,
     progress: Callable[[int], None] = lambda completed: None,
     max_chars: int = 600,
+    publish: Callable[[Path, Path], None] = os.link,
 ) -> dict[str, str | int]:
     if output_format not in {"wav", "mp3"}:
         raise SynthesisError("Ausgabeformat muss WAV oder MP3 sein")
@@ -236,9 +238,9 @@ def synthesize_file(
                 normalize_audio(temporary_mp3, work_dir / "verify-mp3.wav")
             except AudioError as error:
                 raise SynthesisError("Erzeugte MP3-Datei ist nicht dekodierbar") from error
-            os.link(temporary_mp3, output_path)
+            publish(temporary_mp3, output_path)
         else:
-            os.link(temporary_output, output_path)
+            publish(temporary_output, output_path)
 
         return {
             "name": output_path.name,
@@ -247,6 +249,8 @@ def synthesize_file(
         }
     except FileExistsError as error:
         raise SynthesisError("Eine Ausgabedatei mit diesem Namen existiert bereits") from error
+    except OutputError as error:
+        raise SynthesisError(str(error)) from error
     finally:
         temporary_output.unlink(missing_ok=True)
         temporary_mp3.unlink(missing_ok=True)

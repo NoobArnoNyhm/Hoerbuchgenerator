@@ -173,6 +173,7 @@ def create_synthesis_job_handler(
                             language=language,
                             cancel_check=cancel_event.is_set,
                             progress=report_progress,
+                            publish=app.state.outputs.publish,
                         )
                         outputs.append({"state": "completed", **result})
                     except SynthesisError as error:
