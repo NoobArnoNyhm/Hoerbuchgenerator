@@ -51,8 +51,8 @@ def create_ui_callbacks(
         return (
             accepted["id"],
             "Stimmenauftrag angenommen.",
-            gr.update(interactive=False),
-            gr.update(interactive=False),
+            gr.update(value="Stimme erstellen", interactive=False),
+            gr.update(value="Text synthetisieren", interactive=False),
         )
 
     async def submit_synthesis_ui(
@@ -157,8 +157,8 @@ def create_ui_callbacks(
         return (
             accepted["id"],
             "Syntheseauftrag angenommen.",
-            gr.update(interactive=False),
-            gr.update(interactive=False),
+            gr.update(value="Text synthetisieren", interactive=False),
+            gr.update(value="Stimme erstellen", interactive=False),
         )
 
     (

@@ -35,11 +35,15 @@ def create_status_callbacks(
             next_ui_state[key] = value
             return value
 
-        def update_interactive_if_changed(key: str, value: bool) -> Any:
+        def update_interactive_if_changed(
+            key: str,
+            value: bool,
+            label: str,
+        ) -> Any:
             if previous.get(key) == value:
                 return gr.skip()
             next_ui_state[key] = value
-            return gr.update(interactive=value)
+            return gr.update(value=label, interactive=value)
 
         catalog_error = None
         try:
@@ -200,14 +204,20 @@ def create_status_callbacks(
             else gr.skip()
         )
         example_audio_update = update_if_changed("example_audio", example_audio)
-        create_button_update = update_interactive_if_changed("can_create", can_create)
+        create_button_update = update_interactive_if_changed(
+            "can_create",
+            can_create,
+            "Stimme erstellen",
+        )
         cancel_button_update = update_interactive_if_changed(
             "can_cancel",
             active is not None,
+            "Auftrag abbrechen",
         )
         synthesis_button_update = update_interactive_if_changed(
             "can_synthesize",
             can_synthesize,
+            "Text synthetisieren",
         )
         preview_dropdown_update = dropdown_update(
             "preview_voice",
@@ -268,10 +278,13 @@ def create_status_callbacks(
         preview_voice: str | None,
         synthesis_voice: str | None,
     ):
+        unchanged = (gr.skip(),) * 12
         if not job_id:
+            yield unchanged
             return
         queue = await app.state.jobs.subscribe(job_id)
         if queue is None:
+            yield unchanged
             return
         try:
             while True:

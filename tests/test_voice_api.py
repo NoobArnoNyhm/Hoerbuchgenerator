@@ -234,14 +234,17 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
     submitted, refreshed = asyncio.run(submit_and_refresh())
 
     assert submitted[1] == "Stimmenauftrag angenommen."
-    assert submitted[2] == gr.update(interactive=False)
-    assert submitted[3] == gr.update(interactive=False)
+    assert submitted[2] == gr.update(value="Stimme erstellen", interactive=False)
+    assert submitted[3] == gr.update(value="Text synthetisieren", interactive=False)
     assert refreshed[0] == submitted[0]
     assert "Stimme **Teststimme** wurde erstellt." in refreshed[2]
     assert refreshed[4] == str(tmp_path / "voices" / "test-voice" / "example.wav")
     assert refreshed[5]["interactive"] is True
+    assert refreshed[5]["value"] == "Stimme erstellen"
     assert refreshed[6]["interactive"] is False
+    assert refreshed[6]["value"] == "Auftrag abbrechen"
     assert refreshed[7]["interactive"] is True
+    assert refreshed[7]["value"] == "Text synthetisieren"
     assert refreshed[8]["choices"] == [("Teststimme (de)", "test-voice")]
     assert refreshed[8]["value"] == "test-voice"
     assert refreshed[9]["choices"] == refreshed[8]["choices"]
@@ -612,8 +615,8 @@ def test_gradio_synthesis_preserves_uploaded_file_order_and_content(tmp_path):
     assert submitted == (
         "job-123",
         "Syntheseauftrag angenommen.",
-        gr.update(interactive=False),
-        gr.update(interactive=False),
+        gr.update(value="Text synthetisieren", interactive=False),
+        gr.update(value="Stimme erstellen", interactive=False),
     )
     assert captured == {
         "items": [
@@ -764,6 +767,8 @@ def test_gradio_job_stream_delivers_progress_and_failure(tmp_path):
     assert "Synthese laeuft: 0 von ? Chunks." in initial[3]
     assert "2 von 3 Chunks." in progress[3]
     assert "Sprachsynthese fehlgeschlagen: worker failed" in failed[3]
+    assert progress[5]["value"] == failed[5]["value"] == "Stimme erstellen"
+    assert progress[7]["value"] == failed[7]["value"] == "Text synthetisieren"
     assert initial[6]["interactive"] is True
     assert failed[5]["interactive"] is True
     assert failed[6]["interactive"] is False
@@ -785,6 +790,17 @@ def test_gradio_job_stream_cleans_up_after_disconnect(tmp_path):
         return app.state.jobs._subscribers
 
     assert asyncio.run(exercise()) == {}
+
+
+def test_gradio_job_stream_without_job_preserves_all_outputs(tmp_path):
+    app = create_app(tmp_path, FakeVoiceProfiles())
+    ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
+    stream = ui_callback(ui, "stream_job_ui")
+
+    async def exercise():
+        return [update async for update in stream("", None, None)]
+
+    assert asyncio.run(exercise()) == [(gr.skip(),) * 12]
 
 
 def test_gradio_has_no_timer_and_streams_each_job_type(tmp_path):
