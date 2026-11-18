@@ -1,4 +1,5 @@
 import html
+import math
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -8,6 +9,20 @@ from fastapi import FastAPI
 
 from hoerbuchgenerator.jobs import TERMINAL_STATES
 from hoerbuchgenerator.voice_catalog import VoiceCatalogError, list_voice_profiles
+
+
+def _format_remaining_time(seconds: float) -> str:
+    remaining = max(math.ceil(seconds), 1)
+    hours, remainder = divmod(remaining, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    parts = []
+    if hours:
+        parts.append(f"{hours} Std.")
+    if minutes:
+        parts.append(f"{minutes} Min.")
+    if seconds or not parts:
+        parts.append(f"{seconds} Sek.")
+    return " ".join(parts)
 
 
 def create_status_callbacks(
@@ -295,6 +310,29 @@ def create_status_callbacks(
                     synthesis_voice,
                     {},
                 )
+                if (
+                    snapshot["kind"] == "synthesis"
+                    and snapshot["state"] == "running"
+                    and snapshot["phase"] == "synthesizing"
+                    and isinstance(refreshed[3], str)
+                ):
+                    estimate = snapshot.get("estimated_remaining_seconds")
+                    if isinstance(estimate, (int, float)):
+                        refreshed = (
+                            *refreshed[:3],
+                            refreshed[3]
+                            + " Geschaetzte Restzeit: ca. "
+                            + _format_remaining_time(estimate)
+                            + ".",
+                            *refreshed[4:],
+                        )
+                    elif snapshot["completed"] == 0:
+                        refreshed = (
+                            *refreshed[:3],
+                            refreshed[3]
+                            + " Restzeit wird nach dem ersten Chunk berechnet.",
+                            *refreshed[4:],
+                        )
                 if snapshot["state"] in TERMINAL_STATES:
                     library_refresh = (
                         job_id

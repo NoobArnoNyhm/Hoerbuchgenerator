@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from hoerbuchgenerator.main import create_app
 from hoerbuchgenerator.synthesis import MAX_SYNTHESIS_FILES, MAX_TEXT_BYTES
 from hoerbuchgenerator.ui import create_ui_callbacks
+from hoerbuchgenerator.ui_status import _format_remaining_time
 
 
 def ui_callback(ui, name):
@@ -22,6 +23,11 @@ def ui_callback(ui, name):
         for function in ui.fns.values()
         if function.fn is not None and function.fn.__name__ == name
     )
+
+
+def test_remaining_time_formats_hours_and_rounds_up_seconds():
+    assert _format_remaining_time(3665.1) == "1 Std. 1 Min. 6 Sek."
+    assert _format_remaining_time(60.1) == "1 Min. 1 Sek."
 
 
 class FakeVoiceProfiles:
@@ -749,7 +755,15 @@ def test_gradio_job_stream_delivers_progress_and_failure(tmp_path):
             job["id"],
             "synthesizing",
             total=3,
+            completed=0,
+        )
+        waiting = await anext(updates)
+        await app.state.jobs.update(
+            job["id"],
+            "synthesizing",
+            total=3,
             completed=2,
+            estimated_remaining_seconds=125.1,
         )
         progress = await anext(updates)
         await app.state.jobs.finish(
@@ -760,13 +774,16 @@ def test_gradio_job_stream_delivers_progress_and_failure(tmp_path):
         failed = await anext(updates)
         with pytest.raises(StopAsyncIteration):
             await anext(updates)
-        return initial, progress, failed, app.state.jobs._subscribers
+        return initial, waiting, progress, failed, app.state.jobs._subscribers
 
-    initial, progress, failed, subscribers = asyncio.run(exercise())
+    initial, waiting, progress, failed, subscribers = asyncio.run(exercise())
 
     assert "Synthese laeuft: 0 von ? Chunks." in initial[3]
+    assert "Restzeit wird nach dem ersten Chunk berechnet." in waiting[3]
     assert "2 von 3 Chunks." in progress[3]
+    assert "Geschaetzte Restzeit: ca. 2 Min. 6 Sek." in progress[3]
     assert "Sprachsynthese fehlgeschlagen: worker failed" in failed[3]
+    assert "Restzeit" not in failed[3]
     assert progress[5]["value"] == failed[5]["value"] == "Stimme erstellen"
     assert progress[7]["value"] == failed[7]["value"] == "Text synthetisieren"
     assert initial[6]["interactive"] is True

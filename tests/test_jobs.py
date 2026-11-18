@@ -107,3 +107,36 @@ def test_subscriber_queue_coalesces_progress_but_keeps_terminal_snapshot():
     assert terminal["state"] == "completed"
     assert terminal["completed"] == 4
     assert is_empty
+
+
+def test_estimate_is_published_to_events_but_not_job_get_snapshots():
+    async def exercise():
+        manager = JobManager()
+        job = await manager.reserve("synthesis")
+        queue = await manager.subscribe(job["id"])
+        assert queue is not None
+        initial = await queue.get()
+        await manager.update(
+            job["id"],
+            "synthesizing",
+            total=4,
+            completed=1,
+            estimated_remaining_seconds=12.5,
+        )
+        progress = await queue.get()
+        stored = await manager.get(job["id"])
+        active = await manager.active()
+        await manager.request_cancel(job["id"])
+        cancelled = await queue.get()
+        await manager.finish(job["id"], "cancelled")
+        terminal = await queue.get()
+        return initial, progress, stored, active, cancelled, terminal
+
+    initial, progress, stored, active, cancelled, terminal = asyncio.run(exercise())
+
+    assert initial["estimated_remaining_seconds"] is None
+    assert progress["estimated_remaining_seconds"] == 12.5
+    assert "estimated_remaining_seconds" not in stored
+    assert "estimated_remaining_seconds" not in active
+    assert cancelled["estimated_remaining_seconds"] is None
+    assert terminal["estimated_remaining_seconds"] is None

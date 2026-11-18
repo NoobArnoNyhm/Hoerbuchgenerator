@@ -32,6 +32,7 @@ class JobManager:
         self._jobs: dict[str, Job] = {}
         self._cancel_events: dict[str, Event] = {}
         self._subscribers: dict[str, set[asyncio.Queue[JobSnapshot]]] = {}
+        self._estimated_remaining_seconds: dict[str, float | None] = {}
         self._active_id: str | None = None
 
     async def reserve(self, kind: str) -> JobSnapshot:
@@ -42,10 +43,11 @@ class JobManager:
             job = Job(id=str(uuid4()), kind=kind)
             self._jobs[job.id] = job
             self._cancel_events[job.id] = Event()
+            self._estimated_remaining_seconds[job.id] = None
             self._active_id = job.id
-            snapshot = asdict(job)
+            snapshot = self._event_snapshot(job.id, asdict(job))
             self._publish(job.id, snapshot)
-            return snapshot
+            return asdict(job)
 
     async def get(self, job_id: str) -> JobSnapshot | None:
         async with self._lock:
@@ -66,7 +68,8 @@ class JobManager:
                 job.state = "cancel_requested"
                 job.phase = "cancelling"
                 self._cancel_events[job.id].set()
-                self._publish(job.id, asdict(job))
+                self._estimated_remaining_seconds[job.id] = None
+                self._publish(job.id, self._event_snapshot(job.id, asdict(job)))
             return asdict(job)
 
     async def subscribe(self, job_id: str) -> asyncio.Queue[JobSnapshot] | None:
@@ -76,7 +79,7 @@ class JobManager:
                 return None
             queue: asyncio.Queue[JobSnapshot] = asyncio.Queue(maxsize=1)
             self._subscribers.setdefault(job_id, set()).add(queue)
-            queue.put_nowait(asdict(job))
+            queue.put_nowait(self._event_snapshot(job_id, asdict(job)))
             return queue
 
     async def unsubscribe(
@@ -102,18 +105,20 @@ class JobManager:
         *,
         total: int | None = None,
         completed: int | None = None,
+        estimated_remaining_seconds: float | None = None,
     ) -> bool:
         async with self._lock:
             job = self._jobs.get(job_id)
             if job is None or self._active_id != job_id or job.state == "cancel_requested":
                 return False
-            previous = asdict(job)
+            previous = self._event_snapshot(job_id, asdict(job))
             job.state = "running"
             job.phase = phase
             job.total = total
             if completed is not None:
                 job.completed = completed
-            snapshot = asdict(job)
+            self._estimated_remaining_seconds[job_id] = estimated_remaining_seconds
+            snapshot = self._event_snapshot(job_id, asdict(job))
             if snapshot != previous:
                 self._publish(job.id, snapshot)
             return True
@@ -134,8 +139,15 @@ class JobManager:
             job.error = error
             job.result = result
             self._active_id = None
-            self._publish(job.id, asdict(job))
+            self._estimated_remaining_seconds[job_id] = None
+            self._publish(job.id, self._event_snapshot(job.id, asdict(job)))
             return True
+
+    def _event_snapshot(self, job_id: str, snapshot: JobSnapshot) -> JobSnapshot:
+        return {
+            **snapshot,
+            "estimated_remaining_seconds": self._estimated_remaining_seconds.get(job_id),
+        }
 
     def _publish(self, job_id: str, snapshot: JobSnapshot) -> None:
         for queue in self._subscribers.get(job_id, ()):

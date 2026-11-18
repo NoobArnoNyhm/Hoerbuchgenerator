@@ -3,6 +3,7 @@ from collections.abc import Callable
 import logging
 from pathlib import Path
 import shutil
+from time import monotonic
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -22,6 +23,16 @@ from hoerbuchgenerator.worker_synthesizer import WorkerSynthesizer
 
 
 logger = logging.getLogger(__name__)
+
+
+def _estimate_remaining_seconds(
+    elapsed_seconds: float,
+    completed_chunks: int,
+    remaining_chunks: int,
+) -> float | None:
+    if completed_chunks <= 0 or remaining_chunks <= 0:
+        return None
+    return max(elapsed_seconds, 0.0) / completed_chunks * remaining_chunks
 
 
 def create_synthesis_job_handler(
@@ -128,11 +139,13 @@ def create_synthesis_job_handler(
             job_id = job["id"]
             cancel_event = app.state.jobs.cancel_event(job_id)
             outputs: list[dict[str, Any]] = []
-            total_chunks = sum(
+            chunk_counts = [
                 len(_chunks_with_pauses(path.read_text(encoding="utf-8-sig")))
                 for _, path in staged
-            )
+            ]
+            total_chunks = sum(chunk_counts)
             completed_chunks = 0
+            remaining_chunks = total_chunks
             loop = asyncio.get_running_loop()
             synthesizer = WorkerSynthesizer(
                 app.state.voice_worker,
@@ -145,16 +158,32 @@ def create_synthesis_job_handler(
                     "synthesizing",
                     total=total_chunks,
                 )
-                for output_name, text_path in staged:
+                started_at = monotonic()
+                for (output_name, text_path), file_total_chunks in zip(
+                    staged,
+                    chunk_counts,
+                    strict=True,
+                ):
                     text = text_path.read_text(encoding="utf-8-sig")
+                    file_completed_chunks = 0
 
                     def report_progress(current: int) -> None:
+                        nonlocal file_completed_chunks
+                        file_completed_chunks = current
+                        processed_chunks = completed_chunks + current
+                        remaining_after_current = max(remaining_chunks - current, 0)
+                        estimated_remaining_seconds = _estimate_remaining_seconds(
+                            monotonic() - started_at,
+                            processed_chunks,
+                            remaining_after_current,
+                        )
                         future = asyncio.run_coroutine_threadsafe(
                             app.state.jobs.update(
                                 job_id,
                                 "synthesizing",
                                 total=total_chunks,
-                                completed=completed_chunks + current,
+                                completed=processed_chunks,
+                                estimated_remaining_seconds=estimated_remaining_seconds,
                             ),
                             loop,
                         )
@@ -187,8 +216,21 @@ def create_synthesis_job_handler(
                         outputs.append(
                             {"name": output_name, "state": "failed", "error": str(error)}
                         )
-                    completed_chunks += len(
-                        _chunks_with_pauses(text)
+                    completed_chunks += file_completed_chunks
+                    remaining_chunks = max(
+                        remaining_chunks - file_total_chunks,
+                        0,
+                    )
+                    await app.state.jobs.update(
+                        job_id,
+                        "synthesizing",
+                        total=total_chunks,
+                        completed=completed_chunks,
+                        estimated_remaining_seconds=_estimate_remaining_seconds(
+                            monotonic() - started_at,
+                            completed_chunks,
+                            remaining_chunks,
+                        ),
                     )
 
                 if cancel_event.is_set():

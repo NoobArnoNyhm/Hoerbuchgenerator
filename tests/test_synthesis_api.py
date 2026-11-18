@@ -6,7 +6,9 @@ import wave
 
 from fastapi.testclient import TestClient
 
+from hoerbuchgenerator import synthesis_jobs
 from hoerbuchgenerator.main import create_app
+from hoerbuchgenerator.synthesis_jobs import _estimate_remaining_seconds
 from hoerbuchgenerator.worker import VoiceWorkerCancelled, VoiceWorkerCommandError
 
 
@@ -41,6 +43,13 @@ def create_client(tmp_path):
     return TestClient(app)
 
 
+def test_estimated_remaining_seconds_uses_average_completed_chunk_time():
+    assert _estimate_remaining_seconds(10.0, 1, 5) == 50.0
+    assert _estimate_remaining_seconds(20.0, 2, 3) == 30.0
+    assert _estimate_remaining_seconds(10.0, 0, 3) is None
+    assert _estimate_remaining_seconds(10.0, 3, 0) is None
+
+
 def wait_for_job(client, job_id):
     deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
@@ -67,6 +76,7 @@ def test_text_api_synthesizes_and_downloads_result(tmp_path):
         job = wait_for_job(client, accepted.json()["id"])
 
         assert job["state"] == "completed", job
+        assert "estimated_remaining_seconds" not in job
         assert job["result"]["files"] == [
             {"state": "completed", "name": "chapter_one.wav", "format": "wav", "chunks": 1}
         ]
@@ -132,7 +142,7 @@ def test_file_api_processes_multiple_text_files_sequentially(tmp_path):
     ]
 
 
-def test_long_text_api_reports_chunk_progress_until_completion(tmp_path):
+def test_long_text_api_reports_chunk_progress_until_completion(tmp_path, monkeypatch):
     class PausedSynthesisWorker(FakeSynthesisWorker):
         def __init__(self):
             super().__init__()
@@ -147,6 +157,16 @@ def test_long_text_api_reports_chunk_progress_until_completion(tmp_path):
     app = create_app(tmp_path, voice_profiles=object())
     worker = PausedSynthesisWorker()
     app.state.voice_worker = worker
+    clock = [100.0]
+    monkeypatch.setattr(synthesis_jobs, "monotonic", lambda: clock[0])
+    snapshots = []
+    publish = app.state.jobs._publish
+
+    def capture_snapshot(job_id, snapshot):
+        snapshots.append(snapshot.copy())
+        publish(job_id, snapshot)
+
+    app.state.jobs._publish = capture_snapshot
     voice = tmp_path / "voices" / "test_voice"
     voice.mkdir(parents=True)
     (voice / "metadata.json").write_text(
@@ -180,7 +200,9 @@ def test_long_text_api_reports_chunk_progress_until_completion(tmp_path):
             assert active_job["phase"] == "synthesizing"
             assert active_job["total"] == len(paragraphs)
             assert active_job["completed"] == 0
+            assert "estimated_remaining_seconds" not in active_job
 
+            clock[0] = 110.0
             worker.release_first_chunk.set()
             job = wait_for_job(client, job_id)
 
@@ -189,6 +211,13 @@ def test_long_text_api_reports_chunk_progress_until_completion(tmp_path):
         assert job["completed"] == len(paragraphs)
         assert job["result"]["files"][0]["chunks"] == len(paragraphs)
         assert not (tmp_path / "work" / job_id).exists()
+        first_estimate = next(
+            snapshot
+            for snapshot in snapshots
+            if snapshot.get("estimated_remaining_seconds") is not None
+        )
+        assert first_estimate["completed"] == 1
+        assert first_estimate["estimated_remaining_seconds"] == 110.0
     finally:
         worker.release_first_chunk.set()
 
@@ -214,6 +243,74 @@ def test_bulk_synthesis_keeps_completed_files_when_one_file_fails(tmp_path):
         "completed",
         "failed",
     ]
+    assert job["total"] == 2
+    assert job["completed"] == 1
+
+
+def test_partial_file_failure_excludes_unfinished_chunks_from_eta(
+    tmp_path,
+    monkeypatch,
+):
+    clock = [100.0]
+    monkeypatch.setattr(synthesis_jobs, "monotonic", lambda: clock[0])
+
+    class TimedFailureWorker(FakeSynthesisWorker):
+        async def execute(self, command, cancel_event):
+            if command["text"].startswith("Successful"):
+                clock[0] = 110.0
+            return await super().execute(command, cancel_event)
+
+    app = create_app(tmp_path, voice_profiles=object())
+    app.state.voice_worker = TimedFailureWorker()
+    snapshots = []
+    publish = app.state.jobs._publish
+
+    def capture_snapshot(job_id, snapshot):
+        snapshots.append(snapshot.copy())
+        publish(job_id, snapshot)
+
+    app.state.jobs._publish = capture_snapshot
+    voice = tmp_path / "voices" / "test_voice"
+    voice.mkdir(parents=True)
+    (voice / "metadata.json").write_text(
+        json.dumps({"language": "en"}),
+        encoding="utf-8",
+    )
+    (voice / "voice-prompt.npz").write_bytes(b"prompt")
+
+    with TestClient(app) as client:
+        accepted = client.post(
+            "/api/v1/synthesis/files",
+            data={"voice": "test_voice", "format": "wav"},
+            files=[
+                (
+                    "files",
+                    (
+                        "partial.txt",
+                        b"Successful first paragraph.\n\nFAIL second paragraph.",
+                        "text/plain",
+                    ),
+                ),
+                ("files", ("later.txt", b"Later successful paragraph.", "text/plain")),
+            ],
+        )
+        assert accepted.status_code == 202
+        job = wait_for_job(client, accepted.json()["id"])
+
+    assert job["state"] == "completed"
+    assert job["total"] == 3
+    assert job["completed"] == 2
+    assert [item["state"] for item in job["result"]["files"]] == [
+        "failed",
+        "completed",
+    ]
+    after_failed_file = next(
+        snapshot
+        for snapshot in snapshots
+        if snapshot["completed"] == 1
+        and snapshot["estimated_remaining_seconds"] == 10.0
+    )
+    assert after_failed_file["total"] == 3
 
 
 def test_bulk_publishes_first_file_while_running_and_keeps_it_after_cancel(tmp_path):
