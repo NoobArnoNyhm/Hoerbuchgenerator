@@ -33,11 +33,14 @@ Copy-Item .env.example .env
 Unter Linux `.env` mit `cp .env.example .env` anlegen und einmalig
 `sh initialize.sh` ausfuehren. Beide Initialisierungsskripte bauen das
 Runtime-Image, initialisieren die in `.env` ausgewaehlten Modelle und starten
-den App-Container mit Compose. Fuer den Modellabruf ist Netzwerkzugriff auf
-Hugging Face erforderlich. Falls Modellzugriff ein Token benoetigt, `HF_TOKEN`
-nur in der lokalen `.env` setzen. Der Runtime-Container verwendet die lokalen
-Modell-Caches, den Hugging-Face-/Transformers-Offline-Modus und deaktivierte
-Telemetrie; automatische Modellabrufe sind im Betrieb damit abgeschaltet.
+den App-Container mit Compose. Anschliessend pruefen sie bis zu fuenf Minuten
+lang zyklisch den Status-Endpunkt, bis beide Modelle vollstaendig geladen sind.
+Erst dann zeigen sie die Links zur UI und zur interaktiven API-Dokumentation an.
+Fuer den Modellabruf ist Netzwerkzugriff auf Hugging Face erforderlich. Falls
+Modellzugriff ein Token benoetigt, `HF_TOKEN` nur in der lokalen `.env` setzen.
+Der Runtime-Container verwendet die lokalen Modell-Caches, den
+Hugging-Face-/Transformers-Offline-Modus und deaktivierte Telemetrie;
+automatische Modellabrufe sind im Betrieb damit abgeschaltet.
 Docker blockiert ausgehende Netzwerkverbindungen nicht. Der App-Port wird nur
 an `127.0.0.1:${APP_PORT}` gebunden; der Healthcheck wird nach dem Modellstart
 `healthy`.
