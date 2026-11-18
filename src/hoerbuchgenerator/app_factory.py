@@ -46,6 +46,7 @@ def create_app(
         refresh_voice_ui,
         cancel_voice_ui,
         load_voice_example_ui,
+        stream_job_ui,
     ) = create_ui_callbacks(
         app,
         root,
@@ -69,6 +70,7 @@ def create_app(
         refresh_voice_ui,
         cancel_voice_ui,
         load_voice_example_ui,
+        stream_job_ui,
     )
     return gr.mount_gradio_app(
         app,

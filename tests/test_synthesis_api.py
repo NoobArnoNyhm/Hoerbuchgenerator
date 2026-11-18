@@ -79,6 +79,35 @@ def test_text_api_synthesizes_and_downloads_result(tmp_path):
         assert (tmp_path / "config" / "output-catalog.json").is_file()
 
 
+def test_job_events_stream_sends_current_terminal_snapshot(tmp_path):
+    with create_client(tmp_path) as client:
+        accepted = client.post(
+            "/api/v1/synthesis/text",
+            data={
+                "text": "A short synthetic test sentence.",
+                "name": "Chapter One",
+                "voice": "test_voice",
+                "format": "wav",
+            },
+        )
+        job = wait_for_job(client, accepted.json()["id"])
+        response = client.get(f"/api/v1/jobs/{job['id']}/events")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert response.text.startswith("event: job\ndata: ")
+    event_data = response.text.split("data: ", 1)[1].strip()
+    assert json.loads(event_data)["state"] == "completed"
+
+
+def test_job_events_stream_rejects_unknown_job(tmp_path):
+    with create_client(tmp_path) as client:
+        response = client.get("/api/v1/jobs/unknown/events")
+
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "job_not_found"
+
+
 def test_file_api_processes_multiple_text_files_sequentially(tmp_path):
     with create_client(tmp_path) as client:
         accepted = client.post(

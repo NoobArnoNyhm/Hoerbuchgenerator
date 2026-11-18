@@ -14,6 +14,7 @@ def create_ui(
     refresh_voice: Callable[..., Any],
     cancel_voice: Callable[..., Any],
     load_voice_example: Callable[..., Any],
+    stream_job: Callable[..., Any],
 ) -> gr.Blocks:
     with gr.Blocks(title="Hoerbuchgenerator", analytics_enabled=False) as ui:
         gr.Markdown("# Hoerbuchgenerator")
@@ -60,7 +61,7 @@ def create_ui(
                     type="filepath",
                     interactive=False,
                 )
-            with gr.Tab("Sprachsynthese"):
+            with gr.Tab("Sprachsynthese", render_children=True):
                 gr.Markdown("### Text oder Dateien synthetisieren")
                 synthesis_text = gr.Textbox(label="Text", lines=8)
                 synthesis_name = gr.Textbox(
@@ -94,52 +95,49 @@ def create_ui(
                 )
                 synthesis_status = gr.Markdown("Noch kein Sprachsyntheseauftrag.")
                 gr.HTML(OUTPUT_LIBRARY_HTML, padding=False)
-        timer = gr.Timer(2)
-        create_button.click(
+        output_refresh_signal = gr.Textbox(value="", visible=False)
+        status_outputs = [
+            job_id,
+            status,
+            voice_status,
+            synthesis_status,
+            example,
+            create_button,
+            cancel_button,
+            synthesis_button,
+            preview_voice,
+            synthesis_voice,
+            ui_state,
+        ]
+        stream_outputs = [*status_outputs, output_refresh_signal]
+        stream_inputs = [job_id, preview_voice, synthesis_voice]
+
+        create_event = create_button.click(
             submit_voice,
             inputs=[voice_audio, voice_name],
             outputs=[job_id, voice_status, create_button, synthesis_button],
+        )
+        create_event.then(
+            stream_job,
+            inputs=stream_inputs,
+            outputs=stream_outputs,
         )
         cancel_button.click(
             cancel_voice,
             inputs=[job_id],
             outputs=[voice_status, synthesis_status],
         )
-        timer.tick(
+        load_event = ui.load(
             refresh_voice,
             inputs=[job_id, preview_voice, synthesis_voice, ui_state],
-            outputs=[
-                job_id,
-                status,
-                voice_status,
-                synthesis_status,
-                example,
-                create_button,
-                cancel_button,
-                synthesis_button,
-                preview_voice,
-                synthesis_voice,
-                ui_state,
-            ],
+            outputs=status_outputs,
         )
-        ui.load(
-            refresh_voice,
-            inputs=[job_id, preview_voice, synthesis_voice, ui_state],
-            outputs=[
-                job_id,
-                status,
-                voice_status,
-                synthesis_status,
-                example,
-                create_button,
-                cancel_button,
-                synthesis_button,
-                preview_voice,
-                synthesis_voice,
-                ui_state,
-            ],
+        load_event.then(
+            stream_job,
+            inputs=stream_inputs,
+            outputs=stream_outputs,
         )
-        synthesis_button.click(
+        synthesis_event = synthesis_button.click(
             submit_synthesis,
             inputs=[
                 synthesis_text,
@@ -156,13 +154,18 @@ def create_ui(
                 create_button,
             ],
         )
+        synthesis_event.then(
+            stream_job,
+            inputs=stream_inputs,
+            outputs=stream_outputs,
+        )
         preview_voice.change(
             load_voice_example,
             inputs=[preview_voice],
             outputs=[example],
         )
         ui.load(fn=None, js=OUTPUT_LIBRARY_REFRESH_JS)
-        timer.tick(fn=None, js=OUTPUT_LIBRARY_REFRESH_JS)
+        output_refresh_signal.change(fn=None, js=OUTPUT_LIBRARY_REFRESH_JS)
     ui.queue(api_open=False)
     ui.run_history = False
     return ui

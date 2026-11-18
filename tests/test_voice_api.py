@@ -16,6 +16,14 @@ from hoerbuchgenerator.synthesis import MAX_SYNTHESIS_FILES, MAX_TEXT_BYTES
 from hoerbuchgenerator.ui import create_ui_callbacks
 
 
+def ui_callback(ui, name):
+    return next(
+        function.fn
+        for function in ui.fns.values()
+        if function.fn is not None and function.fn.__name__ == name
+    )
+
+
 class FakeVoiceProfiles:
     def __init__(self, *, entered=None, release=None):
         self.entered = entered
@@ -210,9 +218,17 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
     audio_path.write_bytes(b"audio")
 
     async def submit_and_refresh():
-        submitted = await ui.fns[0].fn(str(audio_path), "Teststimme")
+        submitted = await ui_callback(ui, "submit_voice_ui")(
+            str(audio_path),
+            "Teststimme",
+        )
         await asyncio.gather(*tuple(app.state.background_tasks))
-        refreshed = await ui.fns[2].fn(submitted[0], None, None, {})
+        refreshed = await ui_callback(ui, "refresh_voice_ui")(
+            submitted[0],
+            None,
+            None,
+            {},
+        )
         return submitted, refreshed
 
     submitted, refreshed = asyncio.run(submit_and_refresh())
@@ -237,7 +253,7 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
         name="Another voice",
     )
     refreshed_again = asyncio.run(
-        ui.fns[2].fn(
+        ui_callback(ui, "refresh_voice_ui")(
             submitted[0],
             refreshed[8]["value"],
             refreshed[9]["value"],
@@ -253,7 +269,7 @@ def test_gradio_submission_uses_shared_job_and_displays_created_example(tmp_path
     assert refreshed_again[9]["choices"] == refreshed_again[8]["choices"]
     assert refreshed_again[9]["value"] == "test-voice"
     unchanged = asyncio.run(
-        ui.fns[2].fn(
+        ui_callback(ui, "refresh_voice_ui")(
             submitted[0],
             refreshed_again[8]["value"],
             refreshed_again[9]["value"],
@@ -386,7 +402,14 @@ def test_gradio_synthesis_requires_selected_voice(tmp_path):
     ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
 
     submitted = asyncio.run(
-        ui.fns[4].fn("Ein Beispieltext.", "Beispiel", None, None, None, "wav")
+        ui_callback(ui, "submit_synthesis_ui")(
+            "Ein Beispieltext.",
+            "Beispiel",
+            None,
+            None,
+            None,
+            "wav",
+        )
     )
 
     assert submitted == (
@@ -609,7 +632,9 @@ def test_gradio_refresh_reports_invalid_voice_profiles(tmp_path):
     app = create_app(tmp_path)
     ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
 
-    refreshed = asyncio.run(ui.fns[2].fn("", None, None, {}))
+    refreshed = asyncio.run(
+        ui_callback(ui, "refresh_voice_ui")("", None, None, {})
+    )
 
     assert "Stimmenprofil broken-voice ist ungueltig." in refreshed[2]
     assert refreshed[8]["choices"] == []
@@ -630,7 +655,7 @@ def test_gradio_refresh_shows_progress_and_skips_unchanged_updates(tmp_path):
             total=3,
             completed=1,
         )
-        return await ui.fns[2].fn("", None, None, {})
+        return await ui_callback(ui, "refresh_voice_ui")("", None, None, {})
 
     refreshed = asyncio.run(refresh_active_job())
 
@@ -640,7 +665,7 @@ def test_gradio_refresh_shows_progress_and_skips_unchanged_updates(tmp_path):
     assert refreshed[6]["interactive"] is True
     assert refreshed[7]["interactive"] is False
     unchanged = asyncio.run(
-        ui.fns[2].fn(
+        ui_callback(ui, "refresh_voice_ui")(
             refreshed[0],
             refreshed[8]["value"],
             refreshed[9]["value"],
@@ -661,11 +686,148 @@ def test_gradio_voice_refresh_shows_creation_progress(tmp_path):
             "creating_voice",
             total=1,
         )
-        return await ui.fns[2].fn("", None, None, {})
+        return await ui_callback(ui, "refresh_voice_ui")("", None, None, {})
 
     refreshed = asyncio.run(refresh_active_voice_job())
 
     assert "Stimmerstellung laeuft: 0 von 1 Schritten." in refreshed[2]
+
+
+def test_gradio_streams_job_updates_and_refreshes_output_library_on_success(tmp_path):
+    app = create_app(tmp_path, FakeVoiceProfiles())
+    ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
+
+    async def exercise():
+        job = await app.state.jobs.reserve("synthesis")
+        await app.state.jobs.finish(
+            job["id"],
+            "completed",
+            result={
+                "files": [
+                    {
+                        "state": "completed",
+                        "name": "chapter.wav",
+                        "format": "wav",
+                        "chunks": 1,
+                    },
+                ],
+            },
+        )
+        stream = next(
+            function.fn
+            for function in ui.fns.values()
+            if function.fn is not None
+            and function.fn.__name__ == "stream_job_ui"
+        )
+        updates = [
+            update
+            async for update in stream(job["id"], None, None)
+        ]
+        return job, updates
+
+    job, updates = asyncio.run(exercise())
+
+    assert len(updates) == 1
+    assert "Sprachsynthese abgeschlossen." in updates[0][3]
+    assert "[chapter.wav](/api/v1/output/chapter.wav)" in updates[0][3]
+    assert updates[0][11] == job["id"]
+
+
+def test_gradio_job_stream_delivers_progress_and_failure(tmp_path):
+    app = create_app(tmp_path, FakeVoiceProfiles())
+    ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
+    stream = ui_callback(ui, "stream_job_ui")
+
+    async def exercise():
+        job = await app.state.jobs.reserve("synthesis")
+        updates = stream(job["id"], None, None)
+        initial = await anext(updates)
+        await app.state.jobs.update(
+            job["id"],
+            "synthesizing",
+            total=3,
+            completed=2,
+        )
+        progress = await anext(updates)
+        await app.state.jobs.finish(
+            job["id"],
+            "failed",
+            error="worker failed",
+        )
+        failed = await anext(updates)
+        with pytest.raises(StopAsyncIteration):
+            await anext(updates)
+        return initial, progress, failed, app.state.jobs._subscribers
+
+    initial, progress, failed, subscribers = asyncio.run(exercise())
+
+    assert "Synthese laeuft: 0 von ? Chunks." in initial[3]
+    assert "2 von 3 Chunks." in progress[3]
+    assert "Sprachsynthese fehlgeschlagen: worker failed" in failed[3]
+    assert initial[6]["interactive"] is True
+    assert failed[5]["interactive"] is True
+    assert failed[6]["interactive"] is False
+    assert failed[7]["interactive"] is True
+    assert failed[11] == gr.skip()
+    assert subscribers == {}
+
+
+def test_gradio_job_stream_cleans_up_after_disconnect(tmp_path):
+    app = create_app(tmp_path, FakeVoiceProfiles())
+    ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
+    stream = ui_callback(ui, "stream_job_ui")
+
+    async def exercise():
+        job = await app.state.jobs.reserve("voice")
+        updates = stream(job["id"], None, None)
+        await anext(updates)
+        await updates.aclose()
+        return app.state.jobs._subscribers
+
+    assert asyncio.run(exercise()) == {}
+
+
+def test_gradio_has_no_timer_and_streams_each_job_type(tmp_path):
+    app = create_app(tmp_path)
+    ui = next(route.app for route in app.routes if route.path == "/ui").get_blocks()
+    config = ui.get_config_file()
+
+    assert all(
+        component["type"] != "timer"
+        for component in config["components"]
+    )
+    synthesis_tab = next(
+        component
+        for component in config["components"]
+        if component["type"] == "tabitem"
+        and component["props"].get("label") == "Sprachsynthese"
+    )
+    assert synthesis_tab["props"]["render_children"] is True
+    output_refresh = next(
+        component
+        for component in config["components"]
+        if component["type"] == "textbox"
+        and component["props"].get("visible") is False
+    )
+    library_refresh_events = [
+        dependency
+        for dependency in config["dependencies"]
+        if "output-library.js" in (dependency.get("js") or "")
+    ]
+    assert {
+        target[1]
+        for dependency in library_refresh_events
+        for target in dependency["targets"]
+    } == {"change", "load"}
+    assert any(
+        str(target[0]) == str(output_refresh["id"]) and target[1] == "change"
+        for dependency in library_refresh_events
+        for target in dependency["targets"]
+    )
+    assert sum(
+        function.fn is not None and function.fn.__name__ == "stream_job_ui"
+        for function in ui.fns.values()
+    ) == 3
 
 
 def test_gradio_submission_respects_shared_busy_job_slot(tmp_path):
@@ -676,7 +838,10 @@ def test_gradio_submission_respects_shared_busy_job_slot(tmp_path):
 
     async def submit_while_busy():
         await app.state.jobs.reserve("voice")
-        return await ui.fns[0].fn(str(audio_path), "Teststimme")
+        return await ui_callback(ui, "submit_voice_ui")(
+            str(audio_path),
+            "Teststimme",
+        )
 
     submitted = asyncio.run(submit_while_busy())
 

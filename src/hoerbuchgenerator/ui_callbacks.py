@@ -165,6 +165,7 @@ def create_ui_callbacks(
         refresh_voice_ui,
         cancel_voice_ui,
         load_voice_example_ui,
+        stream_job_ui,
     ) = create_status_callbacks(app, root, voice_service_available)
 
     return (
@@ -173,4 +174,5 @@ def create_ui_callbacks(
         refresh_voice_ui,
         cancel_voice_ui,
         load_voice_example_ui,
+        stream_job_ui,
     )

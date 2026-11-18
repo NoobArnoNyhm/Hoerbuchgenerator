@@ -1,3 +1,5 @@
+import asyncio
+import json
 import logging
 import re
 from collections.abc import Awaitable, Callable
@@ -5,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from hoerbuchgenerator.voice_catalog import VoiceCatalogError, list_voice_profiles
 
@@ -71,6 +73,35 @@ def register_api_routes(
         if job is None:
             raise HTTPException(status_code=404, detail={"code": "job_not_found"})
         return job
+
+    @app.get("/api/v1/jobs/{job_id}/events", tags=["jobs"])
+    async def stream_job_events(job_id: str) -> StreamingResponse:
+        queue = await app.state.jobs.subscribe(job_id)
+        if queue is None:
+            raise HTTPException(status_code=404, detail={"code": "job_not_found"})
+
+        async def event_stream():
+            try:
+                while True:
+                    try:
+                        snapshot = await asyncio.wait_for(queue.get(), timeout=15)
+                    except TimeoutError:
+                        yield ": keep-alive\n\n"
+                        continue
+                    yield f"event: job\ndata: {json.dumps(snapshot)}\n\n"
+                    if snapshot["state"] in {"completed", "failed", "cancelled"}:
+                        break
+            finally:
+                await app.state.jobs.unsubscribe(job_id, queue)
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     @app.post("/api/v1/voices", status_code=202, tags=["voices"])
     async def create_voice(

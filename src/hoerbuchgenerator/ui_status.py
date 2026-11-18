@@ -6,6 +6,7 @@ from typing import Any
 import gradio as gr
 from fastapi import FastAPI
 
+from hoerbuchgenerator.jobs import TERMINAL_STATES
 from hoerbuchgenerator.voice_catalog import VoiceCatalogError, list_voice_profiles
 
 
@@ -262,4 +263,54 @@ def create_status_callbacks(
             return None
         return str(root / "voices" / selected_voice / "example.wav")
 
-    return refresh_voice_ui, cancel_voice_ui, load_voice_example_ui
+    async def stream_job_ui(
+        job_id: str | None,
+        preview_voice: str | None,
+        synthesis_voice: str | None,
+    ):
+        if not job_id:
+            return
+        queue = await app.state.jobs.subscribe(job_id)
+        if queue is None:
+            return
+        try:
+            while True:
+                snapshot = await queue.get()
+                refreshed = await refresh_voice_ui(
+                    job_id,
+                    preview_voice,
+                    synthesis_voice,
+                    {},
+                )
+                if snapshot["state"] in TERMINAL_STATES:
+                    library_refresh = (
+                        job_id
+                        if snapshot["kind"] == "synthesis"
+                        and snapshot["state"] == "completed"
+                        else gr.skip()
+                    )
+                    yield (*refreshed, library_refresh)
+                    return
+                yield (
+                    gr.skip(),
+                    refreshed[1],
+                    refreshed[2],
+                    refreshed[3],
+                    gr.skip(),
+                    refreshed[5],
+                    refreshed[6],
+                    refreshed[7],
+                    gr.skip(),
+                    gr.skip(),
+                    gr.skip(),
+                    gr.skip(),
+                )
+        finally:
+            await app.state.jobs.unsubscribe(job_id, queue)
+
+    return (
+        refresh_voice_ui,
+        cancel_voice_ui,
+        load_voice_example_ui,
+        stream_job_ui,
+    )
