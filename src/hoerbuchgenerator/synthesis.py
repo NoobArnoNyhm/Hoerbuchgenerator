@@ -13,7 +13,7 @@ from hoerbuchgenerator.audio_ffmpeg import normalize_audio
 from hoerbuchgenerator.audio_types import AudioError, TARGET_SAMPLE_RATE
 from hoerbuchgenerator.naming import make_slug
 from hoerbuchgenerator.output_catalog import OutputError
-from hoerbuchgenerator.text import chunk_text
+from hoerbuchgenerator.text import chunk_text, split_paragraphs
 from hoerbuchgenerator.voice_profiles import QWEN_LANGUAGES
 
 
@@ -28,7 +28,7 @@ class SynthesisError(RuntimeError):
 
 
 def _chunks_with_pauses(text: str, max_chars: int = 600) -> list[tuple[str, float]]:
-    paragraphs = [line.strip() for line in text.splitlines() if line.strip()]
+    paragraphs = split_paragraphs(text)
     if not paragraphs:
         raise SynthesisError("Der Text darf nicht leer sein")
 

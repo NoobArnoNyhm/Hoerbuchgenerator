@@ -41,3 +41,25 @@ def test_chunk_text_splits_words_when_a_single_word_exceeds_limit():
     chunks = chunk_text("abcdefghijk", max_chars=4, min_chars=0)
 
     assert chunks == ["abcd", "efgh", "ijk"]
+
+
+@pytest.mark.parametrize("line_break", ["\n", "\r\n", "\r"])
+def test_chunk_text_joins_wrapped_lines_with_whitespace(line_break):
+    chunks = chunk_text(f"Ein Satz wird{line_break}hier umgebrochen.")
+
+    assert chunks == ["Ein Satz wird hier umgebrochen."]
+    assert all("\r" not in chunk and "\n" not in chunk for chunk in chunks)
+
+
+def test_chunk_text_wrapped_long_text_keeps_character_limit():
+    text = "Ein langer Beispielsatz wird an mehreren Stellen umgebrochen."
+    wrapped = (
+        "Ein langer Beispielsatz wird\n"
+        "an mehreren Stellen\n"
+        "umgebrochen."
+    )
+
+    chunks = chunk_text(wrapped, max_chars=20)
+
+    assert chunks == chunk_text(text, max_chars=20)
+    assert all(len(chunk) <= 20 for chunk in chunks)

@@ -50,7 +50,22 @@ def test_chunks_preserve_sentence_and_paragraph_pause_boundaries():
     assert chunks[0][1] == PAUSE_BETWEEN_CHUNKS_SECONDS
     assert chunks[1][1] == PAUSE_BETWEEN_PARAGRAPHS_SECONDS
     assert chunks[2][1] == 0
+    assert all("\r" not in text and "\n" not in text for text, _ in chunks)
     assert PAUSE_BETWEEN_CHUNKS_SECONDS < PAUSE_BETWEEN_PARAGRAPHS_SECONDS
+
+
+@pytest.mark.parametrize("line_break", ["\n", "\r\n", "\r"])
+def test_chunks_ignore_wrapped_lines_and_remove_line_breaks(line_break):
+    wrapped = f"Erster Satz{line_break}wird fortgesetzt. Zweiter Satz."
+    expected = _chunks_with_pauses(
+        "Erster Satz wird fortgesetzt. Zweiter Satz."
+    )
+
+    chunks = _chunks_with_pauses(wrapped)
+
+    assert chunks == expected
+    assert all("\r" not in text and "\n" not in text for text, _ in chunks)
+    assert chunks[0][1] == PAUSE_BETWEEN_CHUNKS_SECONDS
 
 
 def test_synthesis_publishes_valid_wav_and_cleans_chunks(tmp_path):
@@ -76,6 +91,23 @@ def test_synthesis_publishes_valid_wav_and_cleans_chunks(tmp_path):
     assert qwen.chunks == [("Ein kurzer Text fuer die Synthese.", "German")]
     assert not list(work_dir.iterdir())
     assert list(output_dir.iterdir()) == [output_dir / "kapitel_eins.wav"]
+
+
+def test_synthesis_sends_linebreak_free_chunks_to_qwen(tmp_path):
+    qwen = FakeSynthesizer()
+
+    synthesize_file(
+        qwen,
+        create_voice(tmp_path),
+        "Ein mehrzeiliger\nText bleibt\r\nzusammen.",
+        "Mehrzeiliger Text",
+        tmp_path / "output",
+        "wav",
+        tmp_path / "work",
+    )
+
+    assert qwen.chunks == [("Ein mehrzeiliger Text bleibt zusammen.", "German")]
+    assert all("\r" not in text and "\n" not in text for text, _ in qwen.chunks)
 
 
 def test_long_synthetic_book_reports_chunk_progress_and_preserves_paragraph_pauses(

@@ -26,11 +26,28 @@ def _split_long_segment(segment: str, max_chars: int) -> list[str]:
     return pieces
 
 
+def split_paragraphs(text: str) -> list[str]:
+    paragraphs: list[str] = []
+    lines: list[str] = []
+
+    for line in text.splitlines():
+        line = line.strip()
+        if line:
+            lines.append(line)
+        elif lines:
+            paragraphs.append(" ".join(lines))
+            lines = []
+
+    if lines:
+        paragraphs.append(" ".join(lines))
+    return paragraphs
+
+
 def chunk_text(text: str, max_chars: int = 600, min_chars: int = 5) -> list[str]:
     if max_chars < 1 or min_chars < 0 or min_chars > max_chars:
         raise ValueError("Ungueltige Chunk-Grenzen")
 
-    paragraphs = [line.strip() for line in text.splitlines() if line.strip()]
+    paragraphs = split_paragraphs(text)
     if not paragraphs:
         raise ValueError("Der Text darf nicht leer sein")
 
