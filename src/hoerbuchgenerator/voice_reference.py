@@ -13,12 +13,17 @@ from hoerbuchgenerator.audio_types import (
 from hoerbuchgenerator.naming import make_slug
 from hoerbuchgenerator.whisper import (
     FasterWhisperAdapter,
+    Transcription,
     WhisperError,
     prepare_reference_sample,
 )
 
 
 class VoiceReferenceError(ValueError):
+    pass
+
+
+class VoiceTranscriptionError(RuntimeError):
     pass
 
 
@@ -46,6 +51,17 @@ class VoiceReferenceService:
             raise ValueError("max_upload_bytes muss mindestens 1 sein")
         self._transcriber = transcriber
         self._max_upload_bytes = max_upload_bytes
+
+    def transcribe_audio(self, audio_path: Path, work_dir: Path) -> Transcription:
+        try:
+            normalized = normalize_audio(
+                audio_path,
+                Path(work_dir) / "normalized.wav",
+                max_upload_bytes=self._max_upload_bytes,
+            )
+            return self._transcriber.transcribe(normalized.path)
+        except (AudioError, WhisperError) as error:
+            raise VoiceTranscriptionError(str(error)) from error
 
     def prepare(
         self,

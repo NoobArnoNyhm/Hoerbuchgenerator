@@ -53,6 +53,8 @@ def test_gradio_ui_is_mounted_separately_and_hidden_from_api_schema():
     assert blocks.api_open is False
     assert "Text" in labels
     assert "TXT-Dateien (optional)" in labels
+    assert "Audiodatei (WAV oder MP3)" in labels
+    assert "Erkannter Text" in labels
     assert "Stimme" in labels
     assert any(
         function.fn.__name__ == "submit_synthesis_ui"
@@ -60,6 +62,10 @@ def test_gradio_ui_is_mounted_separately_and_hidden_from_api_schema():
     )
     assert any(
         function.fn.__name__ == "load_voice_example_ui"
+        for function in blocks.fns.values()
+    )
+    assert any(
+        function.fn.__name__ == "submit_transcription_ui"
         for function in blocks.fns.values()
     )
     component_ids = {

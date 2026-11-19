@@ -3,16 +3,22 @@ from types import SimpleNamespace
 
 import pytest
 
-from hoerbuchgenerator.audio import AudioMetadata, WordInterval
-from hoerbuchgenerator.voice_reference import VoiceReferenceError, VoiceReferenceService
+from hoerbuchgenerator.audio import AudioError, AudioMetadata, WordInterval
+from hoerbuchgenerator.voice_reference import (
+    VoiceReferenceError,
+    VoiceReferenceService,
+    VoiceTranscriptionError,
+)
 from hoerbuchgenerator.whisper import FasterWhisperAdapter, WhisperError
 
 
 class FakeWhisperModel:
     def __init__(self, responses):
         self.responses = iter(responses)
+        self.calls = []
 
     def transcribe(self, audio, **kwargs):
+        self.calls.append((audio, kwargs))
         return next(self.responses)
 
 
@@ -66,6 +72,56 @@ def test_prepare_uploaded_voice_normalizes_and_returns_transcribed_sample(monkey
     assert result.source_end == 1
     assert result.audio.path.read_bytes() == b"reference"
     assert result.work_dir.is_dir()
+
+
+def test_transcribe_audio_normalizes_and_transcribes_the_full_file(monkeypatch, tmp_path):
+    model = FakeWhisperModel([make_response("Der gesamte erkannte Text.", [])])
+    transcriber = FasterWhisperAdapter(model)
+    source = tmp_path / "recording.MP3"
+    source.write_bytes(b"uploaded-audio")
+    work_dir = tmp_path / "work"
+
+    def fake_normalize(source_path, destination, **kwargs):
+        assert source_path == source
+        assert source_path.read_bytes() == b"uploaded-audio"
+        assert kwargs["max_upload_bytes"] > len(b"uploaded-audio")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(b"normalized-full-recording")
+        return AudioMetadata(destination, 60, 24_000, 1, 2)
+
+    monkeypatch.setattr(
+        "hoerbuchgenerator.voice_reference.normalize_audio",
+        fake_normalize,
+    )
+    service = VoiceReferenceService(transcriber)
+
+    result = service.transcribe_audio(source, work_dir)
+
+    assert result.text == "Der gesamte erkannte Text."
+    assert result.language == "de"
+    assert len(model.calls) == 1
+    assert model.calls[0][0] == str(work_dir / "normalized.wav")
+    assert model.calls[0][1]["task"] == "transcribe"
+    assert (work_dir / "normalized.wav").read_bytes() == b"normalized-full-recording"
+
+
+def test_transcribe_audio_rejects_invalid_audio_content(monkeypatch, tmp_path):
+    source = tmp_path / "not-really-audio.wav"
+    source.write_bytes(b"invalid audio")
+
+    def reject_audio(*args, **kwargs):
+        raise AudioError("Die Datei enthaelt keinen lesbaren Audiostream")
+
+    monkeypatch.setattr(
+        "hoerbuchgenerator.voice_reference.normalize_audio",
+        reject_audio,
+    )
+    service = VoiceReferenceService(
+        FasterWhisperAdapter(FakeWhisperModel([]))
+    )
+
+    with pytest.raises(VoiceTranscriptionError, match="lesbaren Audiostream"):
+        service.transcribe_audio(source, tmp_path / "work")
 
 
 @pytest.mark.parametrize(

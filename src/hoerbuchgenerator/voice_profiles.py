@@ -19,6 +19,7 @@ from hoerbuchgenerator.voice_reference import (
     VoiceReferenceError,
     VoiceReferenceService,
 )
+from hoerbuchgenerator.whisper import Transcription
 
 
 EXAMPLE_TEXT = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam"
@@ -76,6 +77,9 @@ class VoiceProfileService:
             return self._qwen.synthesize(text, language, prompt)
         except QwenError as error:
             raise VoiceProfileError(str(error)) from error
+
+    def transcribe_audio(self, audio_path: Path, work_dir: Path) -> Transcription:
+        return self._references.transcribe_audio(audio_path, work_dir)
 
     def create(
         self,

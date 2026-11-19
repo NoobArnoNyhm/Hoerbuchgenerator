@@ -94,20 +94,27 @@ def create_status_callbacks(
         ]
         if active is not None:
             kind = (
-                "Stimmerstellung"
-                if active["kind"] == "voice"
-                else "Sprachsynthese"
+                {
+                    "voice": "Stimmerstellung",
+                    "synthesis": "Sprachsynthese",
+                    "transcription": "Transkription",
+                }.get(active["kind"], "Auftrag")
             )
             phase = active.get("phase") or active["state"]
             phase = {
                 "creating_voice": "Stimme wird erstellt",
                 "synthesizing": "Sprache wird synthetisiert",
+                "transcribing": "Audio wird transkribiert",
             }.get(phase, str(phase).replace("_", " "))
             progress = (
                 f"{active['completed']} / {active['total']} "
                 f"{'Schritte' if active['kind'] == 'voice' else 'Chunks'}"
                 if active["total"]
-                else "wird vorbereitet"
+                else (
+                    "wird verarbeitet"
+                    if active["kind"] == "transcription"
+                    else "wird vorbereitet"
+                )
             )
             status_lines.append(
                 f"**Auftrag:** {kind} · {phase} · {progress}"
@@ -116,6 +123,8 @@ def create_status_callbacks(
 
         voice_status = None
         synthesis_status = None
+        transcription_status = None
+        transcription_text = gr.skip()
         if catalog_error is not None:
             voice_status = (
                 f"Stimmenprofil {html.escape(str(catalog_error))} ist ungueltig."
@@ -180,6 +189,41 @@ def create_status_callbacks(
                     f"Synthese laeuft: {selected['completed']} von "
                     f"{selected['total'] or '?'} Chunks."
                 )
+        elif selected is not None and selected["kind"] == "transcription":
+            transcription_text = ""
+            if selected["state"] == "completed":
+                result = selected.get("result") or {}
+                text = result.get("text")
+                language = result.get("language")
+                if isinstance(text, str):
+                    transcription_text = text
+                    language_status = (
+                        f" (Sprache: `{html.escape(language)}`)"
+                        if isinstance(language, str) and language
+                        else ""
+                    )
+                    transcription_status = (
+                        f"Transkription abgeschlossen{language_status}."
+                    )
+                else:
+                    transcription_status = (
+                        "Transkription fehlgeschlagen: Whisper lieferte keinen Text."
+                    )
+            elif selected["state"] == "failed":
+                transcription_status = (
+                    "Transkription fehlgeschlagen: "
+                    f"{html.escape(str(selected['error']))}"
+                )
+            elif selected["state"] == "cancelled":
+                transcription_status = "Transkription abgebrochen."
+            elif selected["state"] == "cancel_requested":
+                transcription_status = (
+                    "Abbruch angefordert; der Worker wird beendet und neu geladen."
+                )
+            elif selected["state"] == "queued":
+                transcription_status = "Transkription wird vorbereitet ..."
+            else:
+                transcription_status = "Transkription laeuft ..."
 
         example_audio = None
         if preview_voice in profile_names:
@@ -189,6 +233,7 @@ def create_status_callbacks(
 
         can_create = voice_service_available() and active is None
         can_synthesize = active is None
+        can_transcribe = voice_service_available() and active is None
 
         def dropdown_update(
             key: str,
@@ -234,6 +279,11 @@ def create_status_callbacks(
             can_synthesize,
             "Text synthetisieren",
         )
+        transcription_button_update = update_interactive_if_changed(
+            "can_transcribe",
+            can_transcribe,
+            "Transkribieren",
+        )
         preview_dropdown_update = dropdown_update(
             "preview_voice",
             requested_preview_voice,
@@ -243,6 +293,11 @@ def create_status_callbacks(
             "synthesis_voice",
             requested_synthesis_voice,
             synthesis_voice,
+        )
+        transcription_status_update = (
+            update_if_changed("transcription_status", transcription_status)
+            if transcription_status is not None
+            else gr.skip()
         )
         snapshot_update = next_ui_state if next_ui_state != previous else gr.skip()
         return (
@@ -257,21 +312,24 @@ def create_status_callbacks(
             preview_dropdown_update,
             synthesis_dropdown_update,
             snapshot_update,
+            transcription_status_update,
+            transcription_text,
+            transcription_button_update,
         )
 
     async def cancel_voice_ui(job_id: str | None):
         if not job_id:
             message = "Kein aktiver Auftrag."
-            return message, message
+            return message, message, message
         job = await app.state.jobs.request_cancel(job_id)
         if job is None:
             message = "Auftrag nicht gefunden."
-            return message, message
+            return message, message, message
         if job["state"] in {"completed", "failed", "cancelled"}:
             message = "Der Auftrag ist bereits beendet."
-            return message, message
+            return message, message, message
         message = "Abbruch angefordert; der Worker wird beendet und neu geladen."
-        return message, message
+        return message, message, message
 
     def load_voice_example_ui(selected_voice: str | None) -> str | None:
         if not selected_voice:
@@ -293,7 +351,7 @@ def create_status_callbacks(
         preview_voice: str | None,
         synthesis_voice: str | None,
     ):
-        unchanged = (gr.skip(),) * 12
+        unchanged = (gr.skip(),) * 15
         if not job_id:
             yield unchanged
             return
@@ -342,20 +400,10 @@ def create_status_callbacks(
                     )
                     yield (*refreshed, library_refresh)
                     return
-                yield (
-                    gr.skip(),
-                    refreshed[1],
-                    refreshed[2],
-                    refreshed[3],
-                    gr.skip(),
-                    refreshed[5],
-                    refreshed[6],
-                    refreshed[7],
-                    gr.skip(),
-                    gr.skip(),
-                    gr.skip(),
-                    gr.skip(),
-                )
+                updates = [gr.skip()] * len(refreshed)
+                for index in (1, 2, 3, 5, 6, 7, 11, 13):
+                    updates[index] = refreshed[index]
+                yield (*updates, gr.skip())
         finally:
             await app.state.jobs.unsubscribe(job_id, queue)
 

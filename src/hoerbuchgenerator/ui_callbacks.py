@@ -20,14 +20,15 @@ def create_ui_callbacks(
     accept_voice_upload: Callable[..., Any],
     accept_synthesis: Callable[..., Any],
     voice_service_available: Callable[[], bool],
+    accept_transcription: Callable[..., Any] | None = None,
 ) -> tuple[Callable[..., Any], ...]:
     async def submit_voice_ui(audio_path: str | None, name: str):
         if not audio_path:
             message = "Bitte zuerst eine WAV- oder MP3-Datei hochladen."
-            return "", message, gr.skip(), gr.skip()
+            return "", message, gr.skip(), gr.skip(), gr.skip()
         if not isinstance(name, str) or not name.strip():
             message = "Bitte einen Namen fuer die Stimme eingeben."
-            return "", message, gr.skip(), gr.skip()
+            return "", message, gr.skip(), gr.skip(), gr.skip()
 
         try:
             with Path(audio_path).open("rb") as audio_file:
@@ -43,16 +44,17 @@ def create_ui_callbacks(
             detail = error.detail
             message = detail.get("message", detail.get("code", "Unbekannter Fehler"))
             message = f"Stimme konnte nicht gestartet werden: {message}"
-            return "", message, gr.skip(), gr.skip()
+            return "", message, gr.skip(), gr.skip(), gr.skip()
         except OSError:
             logger.exception("Gradio-Stimmenupload konnte nicht gelesen werden")
             message = "Die hochgeladene Audiodatei ist nicht lesbar."
-            return "", message, gr.skip(), gr.skip()
+            return "", message, gr.skip(), gr.skip(), gr.skip()
         return (
             accepted["id"],
             "Stimmenauftrag angenommen.",
             gr.update(value="Stimme erstellen", interactive=False),
             gr.update(value="Text synthetisieren", interactive=False),
+            gr.update(value="Transkribieren", interactive=False),
         )
 
     async def submit_synthesis_ui(
@@ -67,12 +69,12 @@ def create_ui_callbacks(
         if text and text.strip():
             if not output_name or not output_name.strip():
                 message = "Bitte einen Ausgabenamen fuer den Text eingeben."
-                return "", message, gr.skip(), gr.skip()
+                return "", message, gr.skip(), gr.skip(), gr.skip()
 
             encoded = text.encode("utf-8")
             if len(encoded) > MAX_TEXT_BYTES:
                 message = "Die Texteingabe ueberschreitet das Uploadlimit."
-                return "", message, gr.skip(), gr.skip()
+                return "", message, gr.skip(), gr.skip(), gr.skip()
             offset = 0
 
             async def read_text(size: int) -> bytes:
@@ -88,13 +90,13 @@ def create_ui_callbacks(
                     f"Es koennen maximal {MAX_SYNTHESIS_FILES} Textdateien "
                     "gleichzeitig verarbeitet werden."
                 )
-                return "", message, gr.skip(), gr.skip()
+                return "", message, gr.skip(), gr.skip(), gr.skip()
             total_upload_bytes = 0
             file_paths = [Path(file_path) for file_path in uploaded_files]
             for path in file_paths:
                 if path.suffix.lower() != ".txt":
                     message = "Erlaubt sind nur TXT-Dateien."
-                    return "", message, gr.skip(), gr.skip()
+                    return "", message, gr.skip(), gr.skip(), gr.skip()
                 try:
                     total_upload_bytes += path.stat().st_size
                 except OSError:
@@ -103,10 +105,10 @@ def create_ui_callbacks(
                         path.name,
                     )
                     message = "Eine TXT-Datei konnte nicht gelesen werden."
-                    return "", message, gr.skip(), gr.skip()
+                    return "", message, gr.skip(), gr.skip(), gr.skip()
             if total_upload_bytes > MAX_TEXT_BYTES:
                 message = "Die Textdateien ueberschreiten gemeinsam das Uploadlimit."
-                return "", message, gr.skip(), gr.skip()
+                return "", message, gr.skip(), gr.skip(), gr.skip()
 
             for path in file_paths:
                 try:
@@ -117,7 +119,7 @@ def create_ui_callbacks(
                         path.name,
                     )
                     message = "Eine TXT-Datei konnte nicht gelesen werden."
-                    return "", message, gr.skip(), gr.skip()
+                    return "", message, gr.skip(), gr.skip(), gr.skip()
                 offset = [0]
 
                 async def read_file(
@@ -132,10 +134,10 @@ def create_ui_callbacks(
                 items.append((path.stem, read_file))
         else:
             message = "Bitte Text eingeben oder mindestens eine TXT-Datei hochladen."
-            return "", message, gr.skip(), gr.skip()
+            return "", message, gr.skip(), gr.skip(), gr.skip()
         if not voice:
             message = "Bitte eine Stimme auswaehlen."
-            return "", message, gr.skip(), gr.skip()
+            return "", message, gr.skip(), gr.skip(), gr.skip()
 
         try:
             selected_language = (
@@ -153,12 +155,85 @@ def create_ui_callbacks(
             detail = error.detail
             message = detail.get("message", detail.get("code", "Unbekannter Fehler"))
             message = f"Synthese konnte nicht gestartet werden: {message}"
-            return "", message, gr.skip(), gr.skip()
+            return "", message, gr.skip(), gr.skip(), gr.skip()
         return (
             accepted["id"],
             "Syntheseauftrag angenommen.",
             gr.update(value="Text synthetisieren", interactive=False),
             gr.update(value="Stimme erstellen", interactive=False),
+            gr.update(value="Transkribieren", interactive=False),
+        )
+
+    async def submit_transcription_ui(audio_path: str | None):
+        if not audio_path:
+            return (
+                "",
+                "Bitte zuerst eine WAV- oder MP3-Datei hochladen.",
+                gr.skip(),
+                gr.skip(),
+                gr.skip(),
+                gr.skip(),
+            )
+        if accept_transcription is None:
+            return (
+                "",
+                "Whisper-Transkription ist nicht verfuegbar.",
+                gr.skip(),
+                gr.skip(),
+                gr.skip(),
+                gr.skip(),
+            )
+
+        try:
+            with Path(audio_path).open("rb") as audio_file:
+                async def read_chunk(size: int) -> bytes:
+                    return await asyncio.to_thread(audio_file.read, size)
+
+                accepted = await accept_transcription(
+                    Path(audio_path).name,
+                    read_chunk,
+                )
+        except HTTPException as error:
+            detail = error.detail
+            code = detail.get("code") if isinstance(detail, dict) else None
+            messages = {
+                "busy": "Ein anderer Auftrag laeuft bereits.",
+                "empty_audio": "Die Audiodatei ist leer.",
+                "upload_too_large": "Die Audiodatei ueberschreitet das Uploadlimit.",
+                "unsupported_audio_format": "Erlaubt sind nur WAV- und MP3-Dateien.",
+                "voice_service_not_initialized": "Whisper ist noch nicht bereit.",
+                "whisper_not_available": "Whisper-Transkription ist nicht verfuegbar.",
+            }
+            message = (
+                detail.get("message")
+                if isinstance(detail, dict)
+                else None
+            ) or messages.get(code, code or "Unbekannter Fehler")
+            return (
+                "",
+                f"Transkription konnte nicht gestartet werden: {message}",
+                gr.skip(),
+                gr.skip(),
+                gr.skip(),
+                gr.skip(),
+            )
+        except OSError:
+            logger.exception("Gradio-Audioupload konnte nicht gelesen werden")
+            return (
+                "",
+                "Die hochgeladene Audiodatei ist nicht lesbar.",
+                gr.skip(),
+                gr.skip(),
+                gr.skip(),
+                gr.skip(),
+            )
+        return (
+            accepted["id"],
+            "Transkriptionsauftrag angenommen.",
+            "",
+            gr.update(value="Transkribieren", interactive=False),
+            gr.update(value="Stimme erstellen", interactive=False),
+            gr.update(value="Text synthetisieren", interactive=False),
         )
 
     (
@@ -175,4 +250,5 @@ def create_ui_callbacks(
         cancel_voice_ui,
         load_voice_example_ui,
         stream_job_ui,
+        submit_transcription_ui,
     )

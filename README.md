@@ -106,7 +106,11 @@ angeben. Der Auftrag wird angenommen, der gemeinsame Status alle zwei Sekunden
 aktualisiert und nach erfolgreichem Abschluss das synthetisierte Beispielaudio
 angezeigt. Fuer die Synthese waehlen Sie ein vorhandenes Stimmenprofil aus der
 automatisch aktualisierten Stimmenauswahl; das zugehoerige Beispielaudio wird
-in der UI als Vorschau abgespielt. Die API-Aufrufe bleiben weiterhin verfuegbar:
+in der UI als Vorschau abgespielt. Im dritten Tab **Audio zu Text** koennen Sie
+eine WAV- oder MP3-Datei vollstaendig mit Whisper transkribieren lassen. Der
+erkannte Text und die Sprache erscheinen nach Abschluss in der UI; der Auftrag
+teilt sich den globalen Auftragsslot und wird nicht als Datei gespeichert. Die
+API-Aufrufe bleiben weiterhin verfuegbar:
 
 Stimme per REST anlegen:
 

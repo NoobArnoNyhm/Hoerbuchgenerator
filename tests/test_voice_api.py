@@ -330,9 +330,11 @@ def test_gradio_separates_synthesis_views_and_shares_top_status(tmp_path):
     assert [tab["props"]["label"] for tab in tab_components] == [
         "Stimmsynthese",
         "Sprachsynthese",
+        "Audio zu Text",
     ]
     voice_tab_ids = descendant_ids(tabs_node["children"][0])
     synthesis_tab_ids = descendant_ids(tabs_node["children"][1])
+    transcription_tab_ids = descendant_ids(tabs_node["children"][2])
     voice_labels = {
         components[component_id]["props"].get("label")
         for component_id in voice_tab_ids
@@ -340,6 +342,10 @@ def test_gradio_separates_synthesis_views_and_shares_top_status(tmp_path):
     synthesis_labels = {
         components[component_id]["props"].get("label")
         for component_id in synthesis_tab_ids
+    }
+    transcription_labels = {
+        components[component_id]["props"].get("label")
+        for component_id in transcription_tab_ids
     }
     assert {
         "Stimmenname",
@@ -355,6 +361,10 @@ def test_gradio_separates_synthesis_views_and_shares_top_status(tmp_path):
         "Sprache",
         "Ausgabeformat",
     } <= synthesis_labels
+    assert {
+        "Audiodatei (WAV oder MP3)",
+        "Erkannter Text",
+    } <= transcription_labels
     notice = next(
         components[component_id]
         for component_id in voice_tab_ids
@@ -426,6 +436,7 @@ def test_gradio_synthesis_requires_selected_voice(tmp_path):
         "Bitte eine Stimme auswaehlen.",
         gr.skip(),
         gr.skip(),
+        gr.skip(),
     )
 
 
@@ -461,6 +472,7 @@ def test_gradio_synthesis_rejects_text_over_byte_limit(tmp_path):
         "Die Texteingabe ueberschreitet das Uploadlimit.",
         gr.skip(),
         gr.skip(),
+        gr.skip(),
     )
 
 
@@ -493,7 +505,7 @@ def test_gradio_synthesis_rejects_too_many_files_before_reading(tmp_path):
         "gleichzeitig verarbeitet werden."
     )
 
-    assert submitted == ("", message, gr.skip(), gr.skip())
+    assert submitted == ("", message, gr.skip(), gr.skip(), gr.skip())
 
 
 def test_gradio_synthesis_checks_combined_file_size_before_reading(
@@ -536,7 +548,7 @@ def test_gradio_synthesis_checks_combined_file_size_before_reading(
     )
     message = "Die Textdateien ueberschreiten gemeinsam das Uploadlimit."
 
-    assert submitted == ("", message, gr.skip(), gr.skip())
+    assert submitted == ("", message, gr.skip(), gr.skip(), gr.skip())
 
 
 def test_gradio_synthesis_reports_unreadable_text_file(tmp_path):
@@ -568,6 +580,7 @@ def test_gradio_synthesis_reports_unreadable_text_file(tmp_path):
     assert submitted == (
         "",
         "Eine TXT-Datei konnte nicht gelesen werden.",
+        gr.skip(),
         gr.skip(),
         gr.skip(),
     )
@@ -623,6 +636,7 @@ def test_gradio_synthesis_preserves_uploaded_file_order_and_content(tmp_path):
         "Syntheseauftrag angenommen.",
         gr.update(value="Text synthetisieren", interactive=False),
         gr.update(value="Stimme erstellen", interactive=False),
+        gr.update(value="Transkribieren", interactive=False),
     )
     assert captured == {
         "items": [
@@ -739,7 +753,7 @@ def test_gradio_streams_job_updates_and_refreshes_output_library_on_success(tmp_
     assert len(updates) == 1
     assert "Sprachsynthese abgeschlossen." in updates[0][3]
     assert "[chapter.wav](/api/v1/output/chapter.wav)" in updates[0][3]
-    assert updates[0][11] == job["id"]
+    assert updates[0][14] == job["id"]
 
 
 def test_gradio_job_stream_delivers_progress_and_failure(tmp_path):
@@ -790,7 +804,7 @@ def test_gradio_job_stream_delivers_progress_and_failure(tmp_path):
     assert failed[5]["interactive"] is True
     assert failed[6]["interactive"] is False
     assert failed[7]["interactive"] is True
-    assert failed[11] == gr.skip()
+    assert failed[14] == gr.skip()
     assert subscribers == {}
 
 
@@ -817,7 +831,7 @@ def test_gradio_job_stream_without_job_preserves_all_outputs(tmp_path):
     async def exercise():
         return [update async for update in stream("", None, None)]
 
-    assert asyncio.run(exercise()) == [(gr.skip(),) * 12]
+    assert asyncio.run(exercise()) == [(gr.skip(),) * 15]
 
 
 def test_gradio_has_no_timer_and_streams_each_job_type(tmp_path):
@@ -860,7 +874,7 @@ def test_gradio_has_no_timer_and_streams_each_job_type(tmp_path):
     assert sum(
         function.fn is not None and function.fn.__name__ == "stream_job_ui"
         for function in ui.fns.values()
-    ) == 3
+    ) == 4
 
 
 def test_gradio_submission_respects_shared_busy_job_slot(tmp_path):
@@ -882,3 +896,4 @@ def test_gradio_submission_respects_shared_busy_job_slot(tmp_path):
     assert submitted[1] == "Stimme konnte nicht gestartet werden: busy"
     assert submitted[2] == gr.skip()
     assert submitted[3] == gr.skip()
+    assert submitted[4] == gr.skip()

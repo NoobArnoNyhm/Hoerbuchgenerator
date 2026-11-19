@@ -10,6 +10,7 @@ from hoerbuchgenerator.jobs import JobManager
 from hoerbuchgenerator.output_api import register_output_routes
 from hoerbuchgenerator.output_catalog import OutputCatalog
 from hoerbuchgenerator.synthesis_jobs import create_synthesis_job_handler
+from hoerbuchgenerator.transcription_jobs import create_transcription_job_handler
 from hoerbuchgenerator.ui import create_ui, create_ui_callbacks
 from hoerbuchgenerator.voice_jobs import create_voice_job_handler
 from hoerbuchgenerator.voice_profiles import VoiceProfileService
@@ -39,6 +40,11 @@ def create_app(
 
     accept_voice_upload = create_voice_job_handler(app, root, voice_service_available)
     accept_synthesis = create_synthesis_job_handler(app, root, voice_service_available)
+    accept_transcription = create_transcription_job_handler(
+        app,
+        root,
+        voice_service_available,
+    )
 
     (
         submit_voice_ui,
@@ -47,12 +53,14 @@ def create_app(
         cancel_voice_ui,
         load_voice_example_ui,
         stream_job_ui,
+        submit_transcription_ui,
     ) = create_ui_callbacks(
         app,
         root,
         accept_voice_upload,
         accept_synthesis,
         voice_service_available,
+        accept_transcription,
     )
 
     register_api_routes(
@@ -71,6 +79,7 @@ def create_app(
         cancel_voice_ui,
         load_voice_example_ui,
         stream_job_ui,
+        submit_transcription_ui,
     )
     return gr.mount_gradio_app(
         app,

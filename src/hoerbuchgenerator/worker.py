@@ -81,6 +81,22 @@ class VoiceWorker:
             cancel_event,
         )
 
+    async def transcribe_audio(
+        self,
+        *,
+        upload_path: Path,
+        work_dir: Path,
+        cancel_event: Event,
+    ) -> dict[str, str]:
+        return await self.execute(
+            {
+                "action": "transcribe_audio",
+                "upload_path": str(upload_path),
+                "work_dir": str(work_dir),
+            },
+            cancel_event,
+        )
+
     async def execute(
         self,
         command: dict[str, Any],

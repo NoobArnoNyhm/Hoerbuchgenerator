@@ -37,6 +37,11 @@ class FakeModelService:
         assert filename == "reference.wav"
         return SimpleNamespace(name=name, slug="test_voice", language="de")
 
+    def transcribe_audio(self, audio_path, work_dir):
+        assert audio_path.read_bytes() == b"reference"
+        assert work_dir.name == "work"
+        return SimpleNamespace(text="Ein vollstaendiger Satz.", language="de")
+
     def synthesize(self, text, language, prompt_path):
         import numpy as np
 
@@ -84,6 +89,16 @@ def test_spawned_model_runtime_dispatches_commands_and_survives_command_error(tm
                 cancel_event=Event(),
             )
             assert result == {"name": "Test Voice", "slug": "test_voice", "language": "de"}
+
+            transcription = await worker.transcribe_audio(
+                upload_path=upload,
+                work_dir=tmp_path / "work",
+                cancel_event=Event(),
+            )
+            assert transcription == {
+                "text": "Ein vollstaendiger Satz.",
+                "language": "de",
+            }
 
             destination = tmp_path / "chunk.wav"
             result = await worker.execute(

@@ -65,10 +65,30 @@ def _run_voice_worker(connection: Connection, settings: dict[str, str]) -> None:
             continue
 
         command = message["command"]
-        if command.get("action") not in {"create_voice", "synthesize_chunk"}:
+        if command.get("action") not in {
+            "create_voice",
+            "synthesize_chunk",
+            "transcribe_audio",
+        }:
             connection.send({"type": "failed", "error": "Unbekannter Worker-Auftrag"})
             continue
         try:
+            if command["action"] == "transcribe_audio":
+                transcription = service.transcribe_audio(
+                    Path(command["upload_path"]),
+                    Path(command["work_dir"]),
+                )
+                connection.send(
+                    {
+                        "type": "completed",
+                        "result": {
+                            "text": transcription.text,
+                            "language": transcription.language,
+                        },
+                    }
+                )
+                continue
+
             if command["action"] == "synthesize_chunk":
                 audio, sample_rate = service.synthesize(
                     command["text"],

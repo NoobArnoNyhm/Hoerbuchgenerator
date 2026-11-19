@@ -15,6 +15,7 @@ def create_ui(
     cancel_voice: Callable[..., Any],
     load_voice_example: Callable[..., Any],
     stream_job: Callable[..., Any],
+    submit_transcription: Callable[..., Any],
 ) -> gr.Blocks:
     with gr.Blocks(title="Hoerbuchgenerator", analytics_enabled=False) as ui:
         gr.Markdown("# Hoerbuchgenerator")
@@ -95,6 +96,24 @@ def create_ui(
                 )
                 synthesis_status = gr.Markdown("Noch kein Sprachsyntheseauftrag.")
                 gr.HTML(OUTPUT_LIBRARY_HTML, padding=False)
+            with gr.Tab("Audio zu Text"):
+                gr.Markdown("### Audio mit Whisper transkribieren")
+                transcription_audio = gr.File(
+                    label="Audiodatei (WAV oder MP3)",
+                    file_types=[".wav", ".mp3"],
+                    type="filepath",
+                )
+                transcription_button = gr.Button(
+                    "Transkribieren",
+                    variant="primary",
+                )
+                transcription_status = gr.Markdown(
+                    "Noch kein Transkriptionsauftrag."
+                )
+                transcription_text = gr.Textbox(
+                    label="Erkannter Text",
+                    lines=12,
+                )
         output_refresh_signal = gr.Textbox(value="", visible=False)
         status_outputs = [
             job_id,
@@ -108,6 +127,9 @@ def create_ui(
             preview_voice,
             synthesis_voice,
             ui_state,
+            transcription_status,
+            transcription_text,
+            transcription_button,
         ]
         stream_outputs = [*status_outputs, output_refresh_signal]
         stream_inputs = [job_id, preview_voice, synthesis_voice]
@@ -115,7 +137,13 @@ def create_ui(
         create_event = create_button.click(
             submit_voice,
             inputs=[voice_audio, voice_name],
-            outputs=[job_id, voice_status, create_button, synthesis_button],
+            outputs=[
+                job_id,
+                voice_status,
+                create_button,
+                synthesis_button,
+                transcription_button,
+            ],
         )
         create_event.then(
             stream_job,
@@ -125,7 +153,11 @@ def create_ui(
         cancel_button.click(
             cancel_voice,
             inputs=[job_id],
-            outputs=[voice_status, synthesis_status],
+            outputs=[
+                voice_status,
+                synthesis_status,
+                transcription_status,
+            ],
         )
         load_event = ui.load(
             refresh_voice,
@@ -152,9 +184,27 @@ def create_ui(
                 synthesis_status,
                 synthesis_button,
                 create_button,
+                transcription_button,
             ],
         )
         synthesis_event.then(
+            stream_job,
+            inputs=stream_inputs,
+            outputs=stream_outputs,
+        )
+        transcription_event = transcription_button.click(
+            submit_transcription,
+            inputs=[transcription_audio],
+            outputs=[
+                job_id,
+                transcription_status,
+                transcription_text,
+                transcription_button,
+                create_button,
+                synthesis_button,
+            ],
+        )
+        transcription_event.then(
             stream_job,
             inputs=stream_inputs,
             outputs=stream_outputs,
